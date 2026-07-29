@@ -119,7 +119,7 @@ function UnificarPap() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  const enviarDocumento = (event: FormEvent<HTMLFormElement>) => {
+  const enviarDocumento = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!documentoBytes) {
@@ -135,10 +135,30 @@ function UnificarPap() {
 
     const asunto = `PAPELERIA ${dniLimpio}`
     const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
+    const archivo = new File([blob], `${asunto}.pdf`, { type: 'application/pdf' })
     const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
     const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(DESTINO_EMAIL)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
     const mailto = `mailto:${DESTINO_EMAIL}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
     const esMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const esIphone = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+    if (esIphone && navigator.share && navigator.canShare?.({ files: [archivo] })) {
+      try {
+        await navigator.share({
+          files: [archivo],
+          title: asunto,
+          text: `Para: ${DESTINO_EMAIL}\n${cuerpo}`,
+        })
+        setMensaje('Selecciona Gmail en el menu para enviar el documento.')
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+
+        setTroubleshooting(describirError(error))
+      }
+      return
+    }
 
     if (!esMobile) {
       window.open(gmail, '_blank', 'noopener,noreferrer')
@@ -160,6 +180,12 @@ function UnificarPap() {
           window.location.href = mailto
         }
       }, 1200)
+
+      if (esIphone) {
+        setMensaje('No se pudo abrir el menu para compartir el archivo.')
+        return
+      }
+
     }
 
     const enlace = document.createElement('a')
