@@ -39,20 +39,6 @@ function FirmaDigital() {
     return firma
   }
 
-  const descargarFirma = () => {
-    const firma = guardarFirmaActual()
-
-    if (!firma) {
-      return
-    }
-
-    const link = document.createElement('a')
-
-    link.href = firma
-    link.download = 'firma.png'
-    link.click()
-  }
-
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
