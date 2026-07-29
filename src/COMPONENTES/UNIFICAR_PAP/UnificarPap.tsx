@@ -261,9 +261,10 @@ function UnificarPap() {
           Volver
         </Link>
 
-        <h1 className="fw-bold text-danger mb-4">Unificar PAP</h1>
+        <h1 className="fw-bold text-danger mb-4">Aplicar firma en papelería</h1>
 
         <div className="mb-3">
+          <p>En este apartado debes seleccionar el PDF de papelería que deseas aplicarle la firma anterior. Primero selecciona el archivo con el botón de abajo, luego haz clic en "Colocar firma". una vez que se aplique la firma, haz click en siguiente, se descargará el archivo y te abrirá tu mail, adjuntale el archivo descargado y envíalo </p>
           <label htmlFor="pdf" className="form-label">Selecciona un PDF</label>
           <input id="pdf" type="file" accept="application/pdf" className="form-control" onChange={cargarPdf} />
         </div>
@@ -272,9 +273,7 @@ function UnificarPap() {
           <button type="button" className="btn btn-danger" onClick={unificar}>
             Colocar firma
           </button>
-          <button type="button" className="btn btn-outline-danger" onClick={descargar} disabled={!documentoBytes}>
-            Descargar
-          </button>
+
           <button type="button" className="btn btn-danger" onClick={() => setMostrarEnvio(true)} disabled={!documentoBytes}>
             Siguiente
           </button>

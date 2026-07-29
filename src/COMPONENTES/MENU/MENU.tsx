@@ -10,16 +10,40 @@ function MENU() {
 
         <section className="d-grid gap-3 mx-auto" style={{ maxWidth: '18rem' }} aria-label="Tipos de firma">
           <Link to="/firma-digital" className="btn btn-danger btn-lg rounded-4 shadow-sm">
-            Digital
+            Electrónica
           </Link>
           <button type="button" className="btn btn-danger btn-lg rounded-4 shadow-sm">
-            Electronica
+            Digital
           </button>
         </section>
 
         <footer className="mt-5 text-start">
-          <p className="fs-6 mb-1">Cual es la diferencia ?</p>
-          <p className="text-secondary mb-0">aca ira algo de texto explicativo para ayudar al comercializador y la persona, justo con condiciones</p>
+<footer className="mt-5 text-start">
+  <h2 className="h5 text-danger mb-3">¿Cuál debo elegir?</h2>
+
+  <div className="border rounded-4 p-3 mb-3 bg-light">
+    <h3 className="h6 fw-bold">Firma Digital</h3>
+    <p className="mb-2">
+      Elija esta opción únicamente si <strong>ya posee un certificado de firma digital </strong>
+      emitido por una autoridad certificante y sabe cómo utilizarlo.
+    </p>
+    <p className="mb-0 text-secondary">
+      Ejemplo: utiliza un certificado digital para firmar documentos oficiales o laborales.
+    </p>
+  </div>
+
+  <div className="border rounded-4 p-3 bg-light">
+    <h3 className="h6 fw-bold">Firma Electrónica</h3>
+    <p className="mb-2">
+      Elija esta opción si desea <strong>dibujar su firma con el dedo o el mouse </strong>
+      sobre el documento.
+    </p>
+    <p className="mb-0 text-secondary">
+      Esta es la opción adecuada para la mayoría de las personas.
+    </p>
+  </div>
+
+</footer>
         </footer>
       </div>
     </main>

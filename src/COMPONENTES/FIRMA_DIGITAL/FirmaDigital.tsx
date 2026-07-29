@@ -60,7 +60,7 @@ function FirmaDigital() {
           Volver
         </Link>
 
-        <h1 className="fw-bold text-danger mb-2">Firma digital</h1>
+        <h1 className="fw-bold text-danger mb-2">Firma Electrónica</h1>
         <p className="fs-5 mb-2">Dibuja con el dedo debajo</p>
 
         <div className="firma-pad border rounded-4 bg-light overflow-hidden mb-3 mx-auto">
@@ -79,9 +79,7 @@ function FirmaDigital() {
           <button type="button" className="btn btn-outline-danger" onClick={borrarFirma}>
             Limpiar
           </button>
-          <button type="button" className="btn btn-danger" onClick={descargarFirma}>
-            Descargar
-          </button>
+
           {!disabled ? (
             <Link to="/unificarpap" className="btn btn-outline-danger">
               Siguiente
@@ -95,7 +93,7 @@ function FirmaDigital() {
 
         {firmaPng && (
           <details className="mb-3">
-            <summary className="fw-semibold text-danger">Firma aceptada</summary>
+            <summary className="fw-semibold text-danger">Firma aceptada ! (click para ver)</summary>
             <div className="pt-3">
               <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
             </div>
