@@ -39,6 +39,17 @@ function FirmaDigital() {
     return firma
   }
 
+  const descargarFirma = () => {
+    if (!firmaPng) {
+      return
+    }
+
+    const link = document.createElement('a')
+    link.href = firmaPng
+    link.download = 'firma.png'
+    link.click()
+  }
+
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
@@ -80,8 +91,11 @@ function FirmaDigital() {
         {firmaPng && (
           <details className="mb-3">
             <summary className="fw-semibold text-danger">Firma aceptada ! (click para ver)</summary>
-            <div className="pt-3">
+            <div className="pt-3 d-flex flex-column align-items-start gap-2">
               <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
+              <button type="button" className="btn btn-danger" onClick={descargarFirma}>
+                Descargar firma
+              </button>
             </div>
           </details>
         )}
