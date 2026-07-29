@@ -1,5 +1,4 @@
 import { PDFDocument } from 'pdf-lib'
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 
 export const PALABRA_CLAVE = 'Firma'
@@ -7,14 +6,42 @@ export const PALABRA_CLAVE = 'Firma'
 const ANCHO_FIRMA = 140
 const ALTO_FIRMA = 140
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
-
 type ResultadoFirma = {
   bytes: Uint8Array
   coincidencias: number
 }
 
+type PromiseConCompatibilidad = typeof Promise & {
+  withResolvers?: <T>() => {
+    promise: Promise<T>
+    resolve: (value: T | PromiseLike<T>) => void
+    reject: (reason?: unknown) => void
+  }
+}
+
+const cargarPdfJs = async () => {
+  const Promesa = Promise as PromiseConCompatibilidad
+
+  if (!Promesa.withResolvers) {
+    Promesa.withResolvers = <T>() => {
+      let resolve!: (value: T | PromiseLike<T>) => void
+      let reject!: (reason?: unknown) => void
+      const promise = new Promise<T>((resolver, rechazar) => {
+        resolve = resolver
+        reject = rechazar
+      })
+
+      return { promise, resolve, reject }
+    }
+  }
+
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
+  return pdfjsLib
+}
+
 export async function firmarPdf(pdf: ArrayBuffer, firmaPng: string): Promise<ResultadoFirma> {
+  const pdfjsLib = await cargarPdfJs()
   const bytesPdf = new Uint8Array(pdf)
   const visorPdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) }).promise
   const documento = await PDFDocument.load(bytesPdf)
