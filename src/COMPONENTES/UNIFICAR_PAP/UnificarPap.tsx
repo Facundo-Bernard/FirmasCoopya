@@ -135,12 +135,22 @@ function UnificarPap() {
 
     const asunto = `PAPELERIA ${dniLimpio}`
     const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
-    const archivo = new File([blob], `${asunto}.pdf`, { type: 'application/pdf' })
     const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
     const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(DESTINO_EMAIL)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
     const mailto = `mailto:${DESTINO_EMAIL}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
     const esMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     const esIphone = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const descargarArchivo = () => {
+      const enlace = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      enlace.href = url
+      enlace.download = `${asunto}.pdf`
+      enlace.rel = 'noopener'
+      document.body.appendChild(enlace)
+      enlace.click()
+      enlace.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }
 
     if (esIphone) {
       let cambioDeAplicacion = false
@@ -149,35 +159,21 @@ function UnificarPap() {
       }
       const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
 
+      descargarArchivo()
       document.addEventListener('visibilitychange', detectarCambio, { once: true })
-      window.location.href = enlaceApp
-      window.setTimeout(async () => {
+      window.setTimeout(() => {
+        window.location.href = enlaceApp
+      }, 500)
+      window.setTimeout(() => {
         document.removeEventListener('visibilitychange', detectarCambio)
 
         if (cambioDeAplicacion) {
           return
         }
 
-        if (navigator.share && navigator.canShare?.({ files: [archivo] })) {
-          try {
-            await navigator.share({
-              files: [archivo],
-              title: asunto,
-              text: `Para: ${DESTINO_EMAIL}\n${cuerpo}`,
-            })
-            return
-          } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') {
-              return
-            }
-
-            setTroubleshooting(describirError(error))
-          }
-        }
-
         window.location.href = mailto
-      }, 1200)
-      setMensaje('Abriendo Gmail...')
+      }, 1800)
+      setMensaje('PDF descargado. Abriendo Gmail...')
       return
     }
 
@@ -204,15 +200,7 @@ function UnificarPap() {
 
     }
 
-    const enlace = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    enlace.href = url
-    enlace.download = `${asunto}.pdf`
-    enlace.rel = 'noopener'
-    document.body.appendChild(enlace)
-    enlace.click()
-    enlace.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    descargarArchivo()
     setMensaje('Se abrio Gmail y se descargo el PDF. Adjuntalo al correo antes de enviarlo.')
   }
 
