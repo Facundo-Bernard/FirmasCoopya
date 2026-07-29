@@ -11,12 +11,25 @@ const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   return copia
 }
 
+const describirError = (error: unknown) => {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}${error.stack ? `\n\n${error.stack}` : ''}`
+  }
+
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
+}
+
 function UnificarPap() {
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
   const [documentoBytes, setDocumentoBytes] = useState<Uint8Array | null>(null)
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
   const [mensaje, setMensaje] = useState('')
+  const [troubleshooting, setTroubleshooting] = useState('')
 
   useEffect(() => {
     return () => {
@@ -37,15 +50,18 @@ function UnificarPap() {
     setDocumentoBytes(null)
     setDocumentoUrl(URL.createObjectURL(archivo))
     setMensaje('')
+    setTroubleshooting('')
   }
 
   const unificar = async () => {
     if (!archivoPdf || !firmaPng) {
-      setMensaje('Cargá un PDF y asegurate de tener una firma guardada.')
+      setMensaje('Carga un PDF y asegurate de tener una firma guardada.')
+      setTroubleshooting('')
       return
     }
 
     try {
+      setTroubleshooting('')
       const resultado = await firmarPdf(await archivoPdf.arrayBuffer(), firmaPng)
       const bytes = resultado.bytes.slice()
       const url = URL.createObjectURL(new Blob([copiarArrayBuffer(bytes)], { type: 'application/pdf' }))
@@ -55,10 +71,11 @@ function UnificarPap() {
       setMensaje(
         resultado.coincidencias
           ? `Firma colocada en ${resultado.coincidencias} lugar${resultado.coincidencias === 1 ? '' : 'es'}.`
-          : 'No se encontraron lugares con la palabra clave.'
+          : 'No se encontraron lugares con la palabra clave.',
       )
-    } catch {
+    } catch (error) {
       setMensaje('No se pudo procesar el PDF.')
+      setTroubleshooting(describirError(error))
     }
   }
 
@@ -88,7 +105,7 @@ function UnificarPap() {
         <h1 className="fw-bold text-danger mb-4">Unificar PAP</h1>
 
         <div className="mb-3">
-          <label htmlFor="pdf" className="form-label">Seleccioná un PDF</label>
+          <label htmlFor="pdf" className="form-label">Selecciona un PDF</label>
           <input id="pdf" type="file" accept="application/pdf" className="form-control" onChange={cargarPdf} />
         </div>
 
@@ -103,9 +120,16 @@ function UnificarPap() {
 
         {mensaje && <p className="mb-3">{mensaje}</p>}
 
+        {troubleshooting && (
+          <details className="mb-3">
+            <summary className="fw-semibold text-danger">Troubleshooting</summary>
+            <pre className="bg-light border rounded p-3 mt-2 small text-break text-wrap">{troubleshooting}</pre>
+          </details>
+        )}
+
         {documentoUrl && (
           <iframe
-            title="Previsualización del PDF"
+            title="Previsualizacion del PDF"
             src={documentoUrl}
             className="w-100 border rounded"
             style={{ height: '70vh' }}

@@ -43,9 +43,31 @@ const cargarPdfJs = async () => {
 export async function firmarPdf(pdf: ArrayBuffer, firmaPng: string): Promise<ResultadoFirma> {
   const pdfjsLib = await cargarPdfJs()
   const bytesPdf = new Uint8Array(pdf)
-  const visorPdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) }).promise
-  const documento = await PDFDocument.load(bytesPdf)
-  const firma = await documento.embedPng(firmaPng)
+  let visorPdf
+
+  try {
+    visorPdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) }).promise
+  } catch (error) {
+    throw new Error(`PDF.js no pudo leer el archivo: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  let documento: PDFDocument
+
+  try {
+    documento = await PDFDocument.load(bytesPdf)
+  } catch (error) {
+    throw new Error(
+      `pdf-lib no pudo abrir el archivo. Puede estar protegido, encriptado o ser invalido: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+
+  let firma
+
+  try {
+    firma = await documento.embedPng(firmaPng)
+  } catch (error) {
+    throw new Error(`No se pudo leer la imagen PNG de la firma: ${error instanceof Error ? error.message : String(error)}`)
+  }
   const paginas = documento.getPages()
   const palabra = new RegExp(`\\b${PALABRA_CLAVE}\\b`, 'i')
   let coincidencias = 0
