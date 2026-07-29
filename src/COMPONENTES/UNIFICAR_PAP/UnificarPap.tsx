@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
+
+const DESTINO_EMAIL = 'info@asistodo.com.ar'
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -30,6 +32,8 @@ function UnificarPap() {
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
   const [mensaje, setMensaje] = useState('')
   const [troubleshooting, setTroubleshooting] = useState('')
+  const [dni, setDni] = useState('')
+  const [mostrarEnvio, setMostrarEnvio] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -115,6 +119,38 @@ function UnificarPap() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
+  const enviarDocumento = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!documentoBytes) {
+      return
+    }
+
+    const dniLimpio = dni.replace(/\D/g, '')
+
+    if (dniLimpio.length < 7) {
+      setMensaje('Ingresa un DNI valido.')
+      return
+    }
+
+    const asunto = `PAPELERIA ${dniLimpio}`
+    const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
+    const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
+    const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(DESTINO_EMAIL)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+    window.open(gmail, '_blank', 'noopener,noreferrer')
+
+    const enlace = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    enlace.href = url
+    enlace.download = `${asunto}.pdf`
+    enlace.rel = 'noopener'
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setMensaje('Se abrio Gmail y se descargo el PDF. Adjuntalo al correo antes de enviarlo.')
+  }
+
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
@@ -136,7 +172,30 @@ function UnificarPap() {
           <button type="button" className="btn btn-outline-danger" onClick={descargar} disabled={!documentoBytes}>
             Descargar
           </button>
+          <button type="button" className="btn btn-danger" onClick={() => setMostrarEnvio(true)} disabled={!documentoBytes}>
+            Siguiente
+          </button>
         </div>
+
+        {mostrarEnvio && documentoBytes && (
+          <form className="border rounded p-3 mb-3" onSubmit={enviarDocumento}>
+            <label htmlFor="dni" className="form-label">Completa tu DNI</label>
+            <input
+              id="dni"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="form-control mb-3"
+              value={dni}
+              onChange={(event) => setDni(event.target.value)}
+              placeholder="DNI"
+              required
+            />
+            <button type="submit" className="btn btn-danger">
+              Enviar documento
+            </button>
+          </form>
+        )}
 
         {mensaje && <p className="mb-3">{mensaje}</p>}
 
