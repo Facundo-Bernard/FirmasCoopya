@@ -79,12 +79,32 @@ function UnificarPap() {
     }
   }
 
-  const descargar = () => {
+  const descargar = async () => {
     if (!documentoBytes) {
       return
     }
 
-    const url = URL.createObjectURL(new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' }))
+    const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
+    const archivo = new File([blob], 'documento-firmado.pdf', { type: 'application/pdf' })
+
+    if (navigator.share && navigator.canShare?.({ files: [archivo] })) {
+      try {
+        await navigator.share({
+          files: [archivo],
+          title: 'Documento firmado',
+        })
+        setMensaje('Documento listo para guardar desde el menu de compartir.')
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+
+        setTroubleshooting(describirError(error))
+      }
+      return
+    }
+
+    const url = URL.createObjectURL(blob)
     const enlace = document.createElement('a')
     enlace.href = url
     enlace.download = 'documento-firmado.pdf'
