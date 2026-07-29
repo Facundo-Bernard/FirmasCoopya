@@ -138,6 +138,7 @@ function UnificarPap() {
 
     const asunto = `PAPELERIA ${dniLimpio}`
     const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
+    const archivo = new File([blob], `${asunto}.pdf`, { type: 'application/pdf' })
     const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
     const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(DESTINO_EMAIL)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
     const mailto = `mailto:${DESTINO_EMAIL}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
@@ -156,6 +157,54 @@ function UnificarPap() {
     }
 
     if (esIphone) {
+      const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+
+      if (navigator.share && navigator.canShare?.({ files: [archivo] })) {
+        let gmailAbierto = false
+        let shareIniciado = false
+        const limpiarEventos = () => {
+          document.removeEventListener('visibilitychange', abrirGmailAlVolver)
+          window.removeEventListener('focus', abrirGmailAlVolver)
+        }
+        const abrirGmail = () => {
+          if (gmailAbierto) {
+            return
+          }
+
+          gmailAbierto = true
+          limpiarEventos()
+          setMensaje('PDF guardado. Abriendo Gmail...')
+          window.location.href = enlaceApp
+        }
+        const abrirGmailAlVolver = () => {
+          if (shareIniciado && document.visibilityState === 'visible') {
+            abrirGmail()
+          }
+        }
+
+        document.addEventListener('visibilitychange', abrirGmailAlVolver)
+        window.addEventListener('focus', abrirGmailAlVolver)
+
+        try {
+          shareIniciado = true
+          await navigator.share({
+            files: [archivo],
+            title: asunto,
+            text: `Para: ${DESTINO_EMAIL}\n${cuerpo}`,
+          })
+          abrirGmail()
+        } catch (error) {
+          limpiarEventos()
+
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            return
+          }
+
+          setTroubleshooting(describirError(error))
+        }
+        return
+      }
+
       descargarArchivo()
       setPuedeAbrirEmail(true)
       setMensaje('Descarga el PDF y luego volve a esta pagina para abrir Gmail.')
