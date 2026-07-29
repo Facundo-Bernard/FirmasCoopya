@@ -238,7 +238,12 @@ function UnificarPap() {
             Colocar firma
           </button>
 
-          <button type="button" className="btn btn-danger" onClick={() => setMostrarEnvio(true)} disabled={!documentoBytes}>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={() => setMostrarEnvio(true)}
+            disabled={!documentoBytes || mostrarEnvio}
+          >
             Siguiente
           </button>
         </div>
@@ -258,7 +263,7 @@ function UnificarPap() {
               required
             />
             <button type="submit" className="btn btn-danger">
-              Descargar PDF
+              Descargar y Continuar
             </button>
             {puedeAbrirEmail && (
               <button type="button" className="btn btn-outline-danger ms-2" onClick={abrirEmail}>
