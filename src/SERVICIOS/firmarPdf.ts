@@ -19,6 +19,32 @@ type PromiseConCompatibilidad = typeof Promise & {
   }
 }
 
+const agregarCompatibilidadSafari = () => {
+  const Stream = globalThis.ReadableStream
+
+  if (!Stream || !Symbol.asyncIterator || Stream.prototype[Symbol.asyncIterator]) {
+    return
+  }
+
+  Object.defineProperty(Stream.prototype, Symbol.asyncIterator, {
+    configurable: true,
+    value(this: ReadableStream<unknown>) {
+      const lector = this.getReader()
+
+      return {
+        next: () => lector.read(),
+        return: async () => {
+          lector.releaseLock()
+          return { done: true, value: undefined }
+        },
+        [Symbol.asyncIterator]() {
+          return this
+        },
+      }
+    },
+  })
+}
+
 const cargarPdfJs = async () => {
   const Promesa = Promise as PromiseConCompatibilidad
 
@@ -34,6 +60,8 @@ const cargarPdfJs = async () => {
       return { promise, resolve, reject }
     }
   }
+
+  agregarCompatibilidadSafari()
 
   const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
