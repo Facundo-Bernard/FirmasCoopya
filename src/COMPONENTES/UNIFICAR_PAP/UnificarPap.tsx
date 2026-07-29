@@ -142,21 +142,42 @@ function UnificarPap() {
     const esMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     const esIphone = /iPhone|iPad|iPod/i.test(navigator.userAgent)
 
-    if (esIphone && navigator.share && navigator.canShare?.({ files: [archivo] })) {
-      try {
-        await navigator.share({
-          files: [archivo],
-          title: asunto,
-          text: `Para: ${DESTINO_EMAIL}\n${cuerpo}`,
-        })
-        setMensaje('Selecciona Gmail en el menu para enviar el documento.')
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
+    if (esIphone) {
+      let cambioDeAplicacion = false
+      const detectarCambio = () => {
+        cambioDeAplicacion = true
+      }
+      const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+
+      document.addEventListener('visibilitychange', detectarCambio, { once: true })
+      window.location.href = enlaceApp
+      window.setTimeout(async () => {
+        document.removeEventListener('visibilitychange', detectarCambio)
+
+        if (cambioDeAplicacion) {
           return
         }
 
-        setTroubleshooting(describirError(error))
-      }
+        if (navigator.share && navigator.canShare?.({ files: [archivo] })) {
+          try {
+            await navigator.share({
+              files: [archivo],
+              title: asunto,
+              text: `Para: ${DESTINO_EMAIL}\n${cuerpo}`,
+            })
+            return
+          } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+              return
+            }
+
+            setTroubleshooting(describirError(error))
+          }
+        }
+
+        window.location.href = mailto
+      }, 1200)
+      setMensaje('Abriendo Gmail...')
       return
     }
 
@@ -180,11 +201,6 @@ function UnificarPap() {
           window.location.href = mailto
         }
       }, 1200)
-
-      if (esIphone) {
-        setMensaje('No se pudo abrir el menu para compartir el archivo.')
-        return
-      }
 
     }
 
