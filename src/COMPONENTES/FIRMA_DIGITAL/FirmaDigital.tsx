@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
@@ -10,11 +10,14 @@ function FirmaDigital() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
   const dispatch = useDispatch<AppDispatch>()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
+  const [disabled, setDisabled] = useState(!firmaPng)
 
   useEffect(() => {
     if (firmaPng) {
       signatureRef.current?.fromDataURL(firmaPng)
     }
+
+    setDisabled(!firmaPng)
   }, [firmaPng])
 
   const borrarFirma = () => {
@@ -79,9 +82,15 @@ function FirmaDigital() {
           <button type="button" className="btn btn-danger" onClick={descargarFirma}>
             Descargar
           </button>
-          <Link to="/unificarpap" className="btn btn-outline-danger">
-            Siguiente
-          </Link>
+          {!disabled ? (
+            <Link to="/unificarpap" className="btn btn-outline-danger">
+              Siguiente
+            </Link>
+          ) : (
+            <button type="button" className="btn btn-outline-danger" disabled>
+              Siguiente
+            </button>
+          )}
         </div>
 
         {firmaPng && (

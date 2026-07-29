@@ -19,7 +19,7 @@ function MENU() {
 
         <footer className="mt-5 text-start">
           <p className="fs-6 mb-1">Cual es la diferencia ?</p>
-          <p className="text-secondary mb-0">LOREM</p>
+          <p className="text-secondary mb-0">aca ira algo de texto explicativo para ayudar al comercializador y la persona, justo con condiciones</p>
         </footer>
       </div>
     </main>
