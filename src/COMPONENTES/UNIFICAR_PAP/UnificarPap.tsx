@@ -137,7 +137,30 @@ function UnificarPap() {
     const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
     const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
     const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(DESTINO_EMAIL)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-    window.open(gmail, '_blank', 'noopener,noreferrer')
+    const mailto = `mailto:${DESTINO_EMAIL}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+    const esMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+    if (!esMobile) {
+      window.open(gmail, '_blank', 'noopener,noreferrer')
+    } else {
+      const esAndroid = /Android/i.test(navigator.userAgent)
+      const enlaceApp = esAndroid
+        ? `intent://compose?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}#Intent;scheme=mailto;package=com.google.android.gm;end`
+        : `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+      let cambioDeAplicacion = false
+      const detectarCambio = () => {
+        cambioDeAplicacion = true
+      }
+
+      document.addEventListener('visibilitychange', detectarCambio, { once: true })
+      window.location.href = enlaceApp
+      window.setTimeout(() => {
+        document.removeEventListener('visibilitychange', detectarCambio)
+        if (!cambioDeAplicacion) {
+          window.location.href = mailto
+        }
+      }, 1200)
+    }
 
     const enlace = document.createElement('a')
     const url = URL.createObjectURL(blob)
