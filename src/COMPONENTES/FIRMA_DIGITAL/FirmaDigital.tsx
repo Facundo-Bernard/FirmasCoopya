@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
@@ -10,19 +10,11 @@ function FirmaDigital() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
   const dispatch = useDispatch<AppDispatch>()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
-  const [disabled, setDisabled] = useState(!firmaPng || firmaPng === '')
 
   useEffect(() => {
     if (firmaPng) {
       signatureRef.current?.fromDataURL(firmaPng)
     }
-
-    if (firmaPng === null) {
-      setDisabled(true)
-    } else {
-      setDisabled(false)
-    }
-    
   }, [firmaPng])
 
   const borrarFirma = () => {
@@ -84,23 +76,17 @@ function FirmaDigital() {
           <button type="button" className="btn btn-outline-danger" onClick={borrarFirma}>
             Limpiar
           </button>
-          <button type="button" className="btn btn-danger  " onClick={descargarFirma}>
+          <button type="button" className="btn btn-danger" onClick={descargarFirma}>
             Descargar
           </button>
-          {!disabled ? (
-            <Link to="/unificarpap" className="btn btn-outline-danger">
-              Siguiente
-            </Link>
-          ) : (
-            <button className="btn btn-outline-danger" disabled>
-              Siguiente
-            </button>
-          )}
+          <Link to="/unificarpap" className="btn btn-outline-danger">
+            Siguiente
+          </Link>
         </div>
 
         {firmaPng && (
           <details className="mb-3">
-            <summary className="fw-semibold text-danger">Ver firma aceptada</summary>
+            <summary className="fw-semibold text-danger">Firma aceptada</summary>
             <div className="pt-3">
               <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
             </div>

@@ -7,21 +7,3 @@ body,
 body {
   margin: 0;
 }
-
-.firma-pad {
-  width: min(100%, 720px);
-}
-
-.firma-canvas {
-  height: 560px;
-}
-
-@media (max-width: 575.98px) {
-  .firma-pad {
-    width: 100%;
-  }
-
-  .firma-canvas {
-    height: 440px;
-  }
-}
