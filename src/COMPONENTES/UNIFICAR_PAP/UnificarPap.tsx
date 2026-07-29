@@ -5,9 +5,16 @@ import { Link } from 'react-router-dom'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
 
+const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const copia = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(copia).set(bytes)
+  return copia
+}
+
 function UnificarPap() {
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
+  const [documentoBytes, setDocumentoBytes] = useState<Uint8Array | null>(null)
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
   const [mensaje, setMensaje] = useState('')
 
@@ -27,6 +34,7 @@ function UnificarPap() {
     }
 
     setArchivoPdf(archivo)
+    setDocumentoBytes(null)
     setDocumentoUrl(URL.createObjectURL(archivo))
     setMensaje('')
   }
@@ -39,9 +47,10 @@ function UnificarPap() {
 
     try {
       const resultado = await firmarPdf(await archivoPdf.arrayBuffer(), firmaPng)
-      const bytes = resultado.bytes.slice().buffer as ArrayBuffer
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+      const bytes = resultado.bytes.slice()
+      const url = URL.createObjectURL(new Blob([copiarArrayBuffer(bytes)], { type: 'application/pdf' }))
 
+      setDocumentoBytes(bytes)
       setDocumentoUrl(url)
       setMensaje(
         resultado.coincidencias
@@ -54,14 +63,19 @@ function UnificarPap() {
   }
 
   const descargar = () => {
-    if (!documentoUrl) {
+    if (!documentoBytes) {
       return
     }
 
+    const url = URL.createObjectURL(new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' }))
     const enlace = document.createElement('a')
-    enlace.href = documentoUrl
+    enlace.href = url
     enlace.download = 'documento-firmado.pdf'
+    enlace.rel = 'noopener'
+    document.body.appendChild(enlace)
     enlace.click()
+    enlace.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   return (
@@ -82,7 +96,7 @@ function UnificarPap() {
           <button type="button" className="btn btn-danger" onClick={unificar}>
             Colocar firma
           </button>
-          <button type="button" className="btn btn-outline-danger" onClick={descargar} disabled={!documentoUrl}>
+          <button type="button" className="btn btn-outline-danger" onClick={descargar} disabled={!documentoBytes}>
             Descargar
           </button>
         </div>
