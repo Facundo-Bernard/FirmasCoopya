@@ -34,6 +34,7 @@ function UnificarPap() {
   const [troubleshooting, setTroubleshooting] = useState('')
   const [dni, setDni] = useState('')
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
+  const [puedeAbrirEmail, setPuedeAbrirEmail] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -55,6 +56,7 @@ function UnificarPap() {
     setDocumentoUrl(URL.createObjectURL(archivo))
     setMensaje('')
     setTroubleshooting('')
+    setPuedeAbrirEmail(false)
   }
 
   const unificar = async () => {
@@ -72,6 +74,7 @@ function UnificarPap() {
 
       setDocumentoBytes(bytes)
       setDocumentoUrl(url)
+      setPuedeAbrirEmail(false)
       setMensaje(
         resultado.coincidencias
           ? `Firma colocada en ${resultado.coincidencias} lugar${resultado.coincidencias === 1 ? '' : 'es'}.`
@@ -153,27 +156,9 @@ function UnificarPap() {
     }
 
     if (esIphone) {
-      let cambioDeAplicacion = false
-      const detectarCambio = () => {
-        cambioDeAplicacion = true
-      }
-      const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-
       descargarArchivo()
-      document.addEventListener('visibilitychange', detectarCambio, { once: true })
-      window.setTimeout(() => {
-        window.location.href = enlaceApp
-      }, 500)
-      window.setTimeout(() => {
-        document.removeEventListener('visibilitychange', detectarCambio)
-
-        if (cambioDeAplicacion) {
-          return
-        }
-
-        window.location.href = mailto
-      }, 1800)
-      setMensaje('PDF descargado. Abriendo Gmail...')
+      setPuedeAbrirEmail(true)
+      setMensaje('Descarga el PDF y luego volve a esta pagina para abrir Gmail.')
       return
     }
 
@@ -202,6 +187,22 @@ function UnificarPap() {
 
     descargarArchivo()
     setMensaje('Se abrio Gmail y se descargo el PDF. Adjuntalo al correo antes de enviarlo.')
+  }
+
+  const abrirEmail = () => {
+    const dniLimpio = dni.replace(/\D/g, '')
+
+    if (dniLimpio.length < 7) {
+      setMensaje('Ingresa un DNI valido.')
+      return
+    }
+
+    const asunto = `PAPELERIA ${dniLimpio}`
+    const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
+    const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+
+    setPuedeAbrirEmail(false)
+    window.location.href = enlaceApp
   }
 
   return (
@@ -245,8 +246,13 @@ function UnificarPap() {
               required
             />
             <button type="submit" className="btn btn-danger">
-              Enviar documento
+              Descargar PDF
             </button>
+            {puedeAbrirEmail && (
+              <button type="button" className="btn btn-outline-danger ms-2" onClick={abrirEmail}>
+                Abrir Gmail
+              </button>
+            )}
           </form>
         )}
 
