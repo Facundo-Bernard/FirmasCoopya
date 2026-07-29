@@ -1,19 +1,28 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { guardarFirma, limpiarFirma } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
+import './FirmaDigital.css'
 
 function FirmaDigital() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
   const dispatch = useDispatch<AppDispatch>()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
+  const [disabled, setDisabled] = useState(!firmaPng || firmaPng === '')
 
   useEffect(() => {
     if (firmaPng) {
       signatureRef.current?.fromDataURL(firmaPng)
     }
+
+    if (firmaPng === null) {
+      setDisabled(true)
+    } else {
+      setDisabled(false)
+    }
+    
   }, [firmaPng])
 
   const borrarFirma = () => {
@@ -59,21 +68,14 @@ function FirmaDigital() {
         <h1 className="fw-bold text-danger mb-2">Firma digital</h1>
         <p className="fs-5 mb-2">Dibuja con el dedo debajo</p>
 
-        <div className="border rounded-4 bg-light overflow-hidden mb-3 mx-auto" style={{ maxWidth: '720px' }}>
+        <div className="firma-pad border rounded-4 bg-light overflow-hidden mb-3 mx-auto">
           <SignatureCanvas
             ref={signatureRef}
             penColor="#000000"
             onEnd={guardarFirmaActual}
             canvasProps={{
-              width: 720,
-              height: 320,
-              className: 'd-block',
-              style: {
-                width: '100%',
-                maxWidth: '720px',
-                height: '320px',
-                touchAction: 'none',
-              },
+              className: 'firma-canvas d-block w-100',
+              style: { touchAction: 'none' },
             }}
           />
         </div>
@@ -82,19 +84,27 @@ function FirmaDigital() {
           <button type="button" className="btn btn-outline-danger" onClick={borrarFirma}>
             Limpiar
           </button>
-          <button type="button" className="btn btn-danger" onClick={descargarFirma}>
+          <button type="button" className="btn btn-danger  " onClick={descargarFirma}>
             Descargar
           </button>
-          <Link to="/unificarpap" className="btn btn-outline-danger">
-            Siguiente
-          </Link>
+          {!disabled ? (
+            <Link to="/unificarpap" className="btn btn-outline-danger">
+              Siguiente
+            </Link>
+          ) : (
+            <button className="btn btn-outline-danger" disabled>
+              Siguiente
+            </button>
+          )}
         </div>
 
         {firmaPng && (
-          <div>
-            <p className="fw-semibold mb-2">Firma aceptada</p>
-            <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
-          </div>
+          <details className="mb-3">
+            <summary className="fw-semibold text-danger">Ver firma aceptada</summary>
+            <div className="pt-3">
+              <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
+            </div>
+          </details>
         )}
       </div>
     </main>
