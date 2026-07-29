@@ -1,10 +1,10 @@
-import MENU from './COMPONENTES/MENU/MENU'
+import Rutas from './COMPONENTES/Rutas'
 
 function App() {
 
   return (
     <>
-      <MENU />
+      <Rutas />
     </>
   )
 }
