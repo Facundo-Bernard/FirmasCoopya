@@ -78,11 +78,11 @@ function FirmaDigital() {
           </button>
 
           {!disabled ? (
-            <Link to="/unificarpap" className="btn btn-outline-danger">
+            <Link to="/unificarpap" className="btn btn-danger">
               Siguiente
             </Link>
           ) : (
-            <button type="button" className="btn btn-outline-danger" disabled>
+            <button type="button" className="btn btn-danger" disabled>
               Siguiente
             </button>
           )}
@@ -90,11 +90,11 @@ function FirmaDigital() {
 
         {firmaPng && (
           <details className="mb-3">
-            <summary className="fw-semibold text-danger">Firma aceptada ! (click para ver)</summary>
+            <summary className="fw-semibold text-danger">Firma aceptada ! (Opcionalmente, haz click para ver)</summary>
             <div className="pt-3 d-flex flex-column align-items-start gap-2">
               <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
               <button type="button" className="btn btn-danger" onClick={descargarFirma}>
-                Descargar firma
+                (Opcional) Descargar firma
               </button>
             </div>
           </details>
