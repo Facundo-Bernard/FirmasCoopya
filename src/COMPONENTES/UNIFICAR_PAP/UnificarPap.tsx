@@ -36,6 +36,11 @@ function UnificarPap() {
   const [dni, setDni] = useState('')
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
   const [puedeAbrirEmail, setPuedeAbrirEmail] = useState(false)
+  const [emailPendiente, setEmailPendiente] = useState<{
+    enlace: string
+    fallback?: string
+    nuevaPestana?: boolean
+  } | null>(null)
 
   useEffect(() => {
     return () => {
@@ -138,9 +143,8 @@ function UnificarPap() {
 
           gmailAbierto = true
           limpiarEventos()
-          setMensaje('PDF guardado. Abriendo Gmail...')
-          window.alert(RECORDATORIO_ADJUNTO)
-          window.location.href = enlaceApp
+          setMensaje('PDF guardado. Confirma el aviso para abrir Gmail.')
+          setEmailPendiente({ enlace: enlaceApp })
         }
         const abrirGmailAlVolver = () => {
           if (shareIniciado && document.visibilityState === 'visible') {
@@ -179,31 +183,17 @@ function UnificarPap() {
 
     if (!esMobile) {
       descargarArchivo()
-      window.alert(RECORDATORIO_ADJUNTO)
-      window.open(gmail, '_blank', 'noopener,noreferrer')
+      setEmailPendiente({ enlace: gmail, nuevaPestana: true })
     } else {
       const esAndroid = /Android/i.test(navigator.userAgent)
       const enlaceApp = esAndroid
         ? `intent://compose?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}#Intent;scheme=mailto;package=com.google.android.gm;end`
         : `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-      let cambioDeAplicacion = false
-      const detectarCambio = () => {
-        cambioDeAplicacion = true
-      }
-
-      document.addEventListener('visibilitychange', detectarCambio, { once: true })
       descargarArchivo()
-      window.alert(RECORDATORIO_ADJUNTO)
-      window.location.href = enlaceApp
-      window.setTimeout(() => {
-        document.removeEventListener('visibilitychange', detectarCambio)
-        if (!cambioDeAplicacion) {
-          window.location.href = mailto
-        }
-      }, 1200)
+      setEmailPendiente({ enlace: enlaceApp, fallback: mailto })
     }
 
-    setMensaje('Se abrio Gmail y se descargo el PDF. Adjuntalo al correo antes de enviarlo.')
+    setMensaje('Se descargo el PDF. Confirma el aviso para abrir Gmail.')
   }
 
   const abrirEmail = () => {
@@ -219,8 +209,41 @@ function UnificarPap() {
     const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
 
     setPuedeAbrirEmail(false)
-    window.alert(RECORDATORIO_ADJUNTO)
-    window.location.href = enlaceApp
+    setEmailPendiente({ enlace: enlaceApp })
+  }
+
+  const continuarAEmail = () => {
+    if (!emailPendiente) {
+      return
+    }
+
+    const { enlace, fallback, nuevaPestana } = emailPendiente
+    setEmailPendiente(null)
+    setMensaje('Abriendo Gmail...')
+
+    if (nuevaPestana) {
+      window.open(enlace, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    if (fallback) {
+      let cambioDeAplicacion = false
+      const detectarCambio = () => {
+        cambioDeAplicacion = true
+      }
+
+      document.addEventListener('visibilitychange', detectarCambio, { once: true })
+      window.location.href = enlace
+      window.setTimeout(() => {
+        document.removeEventListener('visibilitychange', detectarCambio)
+        if (!cambioDeAplicacion) {
+          window.location.href = fallback
+        }
+      }, 1200)
+      return
+    }
+
+    window.location.href = enlace
   }
 
   return (
@@ -296,6 +319,29 @@ function UnificarPap() {
           />
         )}
       </div>
+
+      {emailPendiente && (
+        <>
+          <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h2 className="modal-title fs-5">Importante</h2>
+                </div>
+                <div className="modal-body">
+                  <p className="mb-0">{RECORDATORIO_ADJUNTO}</p>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-danger" autoFocus onClick={continuarAEmail}>
+                    Entendido
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" />
+        </>
+      )}
     </main>
   )
 }
