@@ -1,7 +1,7 @@
 import { PDFDocument } from 'pdf-lib'
 import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 
-export const PALABRA_CLAVE = 'Firma'
+export const PALABRA_CLAVE = 'firma_aqui'
 
 const ANCHO_FIRMA = 140
 const ALTO_FIRMA = 140
