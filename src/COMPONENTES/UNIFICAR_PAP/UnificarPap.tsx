@@ -6,7 +6,8 @@ import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
-const RECORDATORIO_ADJUNTO = 'No te olvides colocar la papeleria firmada que se acaba de descargar en el mail !'
+const FORM_SUBMIT_URL = `https://formsubmit.co/ajax/${DESTINO_EMAIL}`
+const MAXIMO_ENVIO_BYTES = 10_000_000
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -34,8 +35,10 @@ function UnificarPap() {
   const [mensaje, setMensaje] = useState('')
   const [troubleshooting, setTroubleshooting] = useState('')
   const [dni, setDni] = useState('')
+  const [email, setEmail] = useState('')
+  const [adjuntos, setAdjuntos] = useState<File[]>([])
+  const [enviando, setEnviando] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
-  const [puedeAbrirEmail, setPuedeAbrirEmail] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -57,7 +60,6 @@ function UnificarPap() {
     setDocumentoUrl(URL.createObjectURL(archivo))
     setMensaje('')
     setTroubleshooting('')
-    setPuedeAbrirEmail(false)
   }
 
   const unificar = async () => {
@@ -75,7 +77,6 @@ function UnificarPap() {
 
       setDocumentoBytes(bytes)
       setDocumentoUrl(url)
-      setPuedeAbrirEmail(false)
       setMensaje(
         resultado.coincidencias
           ? `Firma colocada en ${resultado.coincidencias} lugar${resultado.coincidencias === 1 ? '' : 'es'}.`
@@ -90,122 +91,10 @@ function UnificarPap() {
   const enviarDocumento = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!documentoBytes) {
+    if (!documentoBytes || enviando) {
       return
     }
 
-    const dniLimpio = dni.replace(/\D/g, '')
-
-    if (dniLimpio.length < 7) {
-      setMensaje('Ingresa un DNI valido.')
-      return
-    }
-
-    window.alert(RECORDATORIO_ADJUNTO)
-
-    const asunto = `PAPELERIA ${dniLimpio}`
-    const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
-    const archivo = new File([blob], `${asunto}.pdf`, { type: 'application/pdf' })
-    const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
-    const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(DESTINO_EMAIL)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-    const mailto = `mailto:${DESTINO_EMAIL}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-    const esMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    const esIphone = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-    const descargarArchivo = () => {
-      const enlace = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-      enlace.href = url
-      enlace.download = `${asunto}.pdf`
-      enlace.rel = 'noopener'
-      document.body.appendChild(enlace)
-      enlace.click()
-      enlace.remove()
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-    }
-
-    if (esIphone) {
-      const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-
-      if (navigator.share && navigator.canShare?.({ files: [archivo] })) {
-        let gmailAbierto = false
-        let shareIniciado = false
-        const limpiarEventos = () => {
-          document.removeEventListener('visibilitychange', abrirGmailAlVolver)
-          window.removeEventListener('focus', abrirGmailAlVolver)
-        }
-        const abrirGmail = () => {
-          if (gmailAbierto) {
-            return
-          }
-
-          gmailAbierto = true
-          limpiarEventos()
-          setMensaje('PDF guardado. Abriendo Gmail...')
-          window.location.href = enlaceApp
-        }
-        const abrirGmailAlVolver = () => {
-          if (shareIniciado && document.visibilityState === 'visible') {
-            abrirGmail()
-          }
-        }
-
-        document.addEventListener('visibilitychange', abrirGmailAlVolver)
-        window.addEventListener('focus', abrirGmailAlVolver)
-
-        try {
-          shareIniciado = true
-          await navigator.share({
-            files: [archivo],
-            title: asunto,
-            text: `Para: ${DESTINO_EMAIL}\n${cuerpo}`,
-          })
-          abrirGmail()
-        } catch (error) {
-          limpiarEventos()
-
-          if (error instanceof DOMException && error.name === 'AbortError') {
-            return
-          }
-
-          setTroubleshooting(describirError(error))
-        }
-        return
-      }
-
-      descargarArchivo()
-      setPuedeAbrirEmail(true)
-      setMensaje('Descarga el PDF y luego volve a esta pagina para abrir Gmail.')
-      return
-    }
-
-    if (!esMobile) {
-      descargarArchivo()
-      window.open(gmail, '_blank', 'noopener,noreferrer')
-    } else {
-      const esAndroid = /Android/i.test(navigator.userAgent)
-      const enlaceApp = esAndroid
-        ? `intent://compose?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}#Intent;scheme=mailto;package=com.google.android.gm;end`
-        : `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
-      let cambioDeAplicacion = false
-      const detectarCambio = () => {
-        cambioDeAplicacion = true
-      }
-
-      descargarArchivo()
-      document.addEventListener('visibilitychange', detectarCambio, { once: true })
-      window.location.href = enlaceApp
-      window.setTimeout(() => {
-        document.removeEventListener('visibilitychange', detectarCambio)
-        if (!cambioDeAplicacion) {
-          window.location.href = mailto
-        }
-      }, 1200)
-    }
-
-    setMensaje('Se abrio Gmail y se descargo el PDF. Adjuntalo al correo antes de enviarlo.')
-  }
-
-  const abrirEmail = () => {
     const dniLimpio = dni.replace(/\D/g, '')
 
     if (dniLimpio.length < 7) {
@@ -214,11 +103,48 @@ function UnificarPap() {
     }
 
     const asunto = `PAPELERIA ${dniLimpio}`
-    const cuerpo = `DNI: ${dniLimpio}\n\nSe adjunta el documento firmado.`
-    const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
+    const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
+    const totalBytes = blob.size + adjuntos.reduce((total, archivo) => total + archivo.size, 0)
 
-    setPuedeAbrirEmail(false)
-    window.location.href = enlaceApp
+    if (totalBytes > MAXIMO_ENVIO_BYTES) {
+      setMensaje('El PDF y los archivos adicionales superan el limite total de 10 MB.')
+      return
+    }
+
+    const datos = new FormData()
+    datos.append('dni', dniLimpio)
+    datos.append('email', email)
+    datos.append('_subject', asunto)
+    datos.append('_template', 'table')
+    datos.append('documento', blob, `${asunto}.pdf`)
+    adjuntos.forEach((archivo) => datos.append('adjuntos', archivo))
+
+    try {
+      setEnviando(true)
+      setMensaje('Enviando papeleria...')
+      setTroubleshooting('')
+
+      const respuesta = await fetch(FORM_SUBMIT_URL, {
+        method: 'POST',
+        body: datos,
+      })
+      const resultado = (await respuesta.json()) as {
+        success?: boolean | string
+        message?: string
+        error?: string
+      }
+
+      if (!respuesta.ok || resultado.success === false || resultado.success === 'false') {
+        throw new Error(resultado.error || resultado.message || `Error HTTP ${respuesta.status}`)
+      }
+
+      setMensaje(`Papeleria enviada a ${DESTINO_EMAIL}. Si es el primer envio, confirma el correo de activacion de FormSubmit.`)
+    } catch (error) {
+      setMensaje('No se pudo enviar la papeleria.')
+      setTroubleshooting(describirError(error))
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -231,7 +157,7 @@ function UnificarPap() {
         <h1 className="fw-bold text-danger mb-4">Aplicar firma en papelería</h1>
 
         <div className="mb-3">
-          <p>En este apartado debes seleccionar el PDF de papelería que deseas aplicarle la firma anterior. Primero selecciona el archivo con el botón de abajo, luego haz clic en "Colocar firma". una vez que se aplique la firma, haz click en siguiente, se descargará el archivo y te abrirá tu mail, adjuntale el archivo descargado y envíalo </p>
+          <p>Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
           <label htmlFor="pdf" className="form-label">Selecciona un PDF</label>
           <input id="pdf" type="file" accept="application/pdf" className="form-control" onChange={cargarPdf} />
         </div>
@@ -265,14 +191,31 @@ function UnificarPap() {
               placeholder="DNI"
               required
             />
-            <button type="submit" className="btn btn-danger">
-              Descargar y Continuar
+
+            <label htmlFor="email" className="form-label">Completa tu email</label>
+            <input
+              id="email"
+              type="email"
+              className="form-control mb-3"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="tuemail@ejemplo.com"
+              required
+            />
+
+            <label htmlFor="adjuntos" className="form-label">Fotos o archivos adicionales (opcional)</label>
+            <input
+              id="adjuntos"
+              type="file"
+              multiple
+              className="form-control mb-2"
+              onChange={(event) => setAdjuntos(Array.from(event.target.files ?? []))}
+            />
+            <div className="form-text mb-3">El PDF y los archivos adicionales pueden pesar hasta 10 MB en total.</div>
+
+            <button type="submit" className="btn btn-danger" disabled={enviando}>
+              {enviando ? 'Enviando...' : 'Enviar papelería'}
             </button>
-            {puedeAbrirEmail && (
-              <button type="button" className="btn btn-outline-danger ms-2" onClick={abrirEmail}>
-                Abrir Gmail
-              </button>
-            )}
           </form>
         )}
 
