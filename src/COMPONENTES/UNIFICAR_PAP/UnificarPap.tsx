@@ -127,8 +127,8 @@ function UnificarPap() {
     datos.append('_template', 'table')
     datos.append('_captcha', 'false')
     datos.append('attachment', blob, `${asunto}.pdf`)
-    datos.append('attachment_2', fotoDni, fotoDni.name)
-    datos.append('attachment_3', comprobanteCbu, comprobanteCbu.name)
+    datos.append('attachment', fotoDni, `FOTO_DNI_${dniLimpio}_${fotoDni.name}`)
+    datos.append('attachment', comprobanteCbu, `COMPROBANTE_CBU_${dniLimpio}_${comprobanteCbu.name}`)
 
     try {
       setEnviando(true)
