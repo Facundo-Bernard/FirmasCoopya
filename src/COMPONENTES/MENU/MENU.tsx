@@ -45,6 +45,12 @@ function MENU() {
 
 </footer>
         </footer>
+
+        <div className="text-center mt-4">
+          <Link to="/tutorial" className="btn btn-outline-danger">
+            Tutorial
+          </Link>
+        </div>
       </div>
     </main>
   )
