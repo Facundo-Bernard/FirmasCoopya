@@ -83,7 +83,6 @@ function UnificarPap() {
 
       setDocumentoBytes(bytes)
       setDocumentoUrl(url)
-      setMostrarEnvio(true)
       setMensaje(
         resultado.coincidencias
           ? `Firma colocada en ${resultado.coincidencias} lugar${resultado.coincidencias === 1 ? '' : 'es'}.`
@@ -157,146 +156,168 @@ function UnificarPap() {
     }
   }
 
-  const dniValido = dni.replace(/\D/g, '').length >= 7
-  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-
   return (
     <main className="min-vh-100 bg-white">
-      <div className="container py-4 text-center">
-        <div className="col-12 col-md-8 col-lg-6 mx-auto">
-          <Link to="/firma-digital" className="btn btn-link text-danger mb-3">Volver</Link>
+      <div className="container py-4">
+        <Link to="/firma-digital" className="btn btn-link text-danger px-0 mb-3">
+          Volver
+        </Link>
 
-          <h1 className="fw-bold text-dark mb-3">Firmar papelería</h1>
-          <p className="fs-5 mb-4">Selecciona el PDF.</p>
+        <h1 className="fw-bold text-dark mb-4">Aplicar firma en papelería</h1>
 
-          <label htmlFor="pdf" className="btn btn-secondary btn-lg w-100 mb-2">Elegir PDF</label>
-          <input id="pdf" type="file" accept="application/pdf" className="d-none" onChange={cargarPdf} />
-          {archivoPdf && <p className="text-success fw-semibold">PDF listo</p>}
+        <div className="mb-3">
+          <p className="fs-5">Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
+          <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
+          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} />
+        </div>
+
+        <div className="d-flex flex-wrap gap-2 mb-3">
+          <button type="button" className="btn btn-danger" onClick={unificar}>
+            Colocar firma
+          </button>
 
           <button
             type="button"
-            className="btn btn-danger btn-lg w-100 mb-4"
-            onClick={unificar}
-            disabled={!archivoPdf || !firmaPng || Boolean(documentoBytes)}
+            className="btn btn-danger"
+            onClick={() => setMostrarEnvio(true)}
+            disabled={!documentoBytes || mostrarEnvio}
           >
-            {documentoBytes ? 'Firma colocada' : 'Colocar firma'}
+            Siguiente
           </button>
+        </div>
 
-          {mensaje && <p className="mb-3">{mensaje}</p>}
+        {mostrarEnvio && documentoBytes && (
+          <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
+            <h2 className="h3 mb-2">Último paso</h2>
+            <p className="fs-5 text-secondary mb-4">Completa tus datos y prepara los tres archivos indicados.</p>
 
-          {mostrarEnvio && documentoBytes && (
-            <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-4" onSubmit={enviarDocumento}>
-              <p className="fw-semibold text-success mb-4">Papelería firmada lista</p>
-
-              <div>
-                <label htmlFor="dni" className="form-label h4">DNI</label>
+            <div className="row g-3 mb-4">
+              <div className="col-md-6">
+                <label htmlFor="dni" className="form-label fw-semibold">Tu DNI</label>
                 <input
                   id="dni"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  className="form-control form-control-lg text-center"
+                  className="form-control form-control-lg"
                   value={dni}
                   onChange={(event) => setDni(event.target.value)}
-                  placeholder="30123456"
+                  placeholder="Ejemplo: 30123456"
                   required
                 />
               </div>
 
-              {dniValido && (
-                <div className="border-top pt-4 mt-4">
-                  <label htmlFor="email" className="form-label h4">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    className="form-control form-control-lg text-center"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="tuemail@ejemplo.com"
-                    required
-                  />
-                </div>
-              )}
-
-              {emailValido && (
-                <div className="border-top pt-4 mt-4">
-                  <h2 className="h4">Foto con tu DNI</h2>
-                  <p>Tu cara y el DNI deben verse juntos.</p>
-                  <label htmlFor="foto-dni" className="btn btn-secondary btn-lg w-100">
-                    {fotoDni ? 'Cambiar foto' : 'Sacar foto'}
-                  </label>
-                  <input
-                    id="foto-dni"
-                    type="file"
-                    accept="image/*"
-                    capture="user"
-                    className="d-none"
-                    onChange={(event) => {
-                      setFotoDni(event.target.files?.[0] ?? null)
-                      setEnvioCompleto(false)
-                    }}
-                    required
-                  />
-                  {fotoDni && <p className="mt-2 mb-0 text-success fw-semibold">Foto lista</p>}
-                </div>
-              )}
-
-              {fotoDni && (
-                <div className="border-top pt-4 mt-4">
-                  <h2 className="h4">Comprobante de CBU</h2>
-                  <p>Ticket, captura bancaria o comprobante.</p>
-                  <label htmlFor="comprobante-cbu" className="btn btn-secondary btn-lg w-100">
-                    {comprobanteCbu ? 'Cambiar comprobante' : 'Elegir comprobante'}
-                  </label>
-                  <input
-                    id="comprobante-cbu"
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="d-none"
-                    onChange={(event) => {
-                      setComprobanteCbu(event.target.files?.[0] ?? null)
-                      setEnvioCompleto(false)
-                    }}
-                    required
-                  />
-                  {comprobanteCbu && <p className="mt-2 mb-0 text-success fw-semibold">Comprobante listo</p>}
-
-                  <button
-                    type="submit"
-                    className="btn btn-danger btn-lg w-100 mt-4"
-                    disabled={enviando || envioCompleto || !comprobanteCbu}
-                  >
-                    {enviando ? 'Enviando...' : envioCompleto ? 'Enviado' : 'Confirmar envío'}
-                  </button>
-                </div>
-              )}
-            </form>
-          )}
-
-          {envioCompleto && (
-            <div className="alert alert-success" role="alert">
-              <h2 className="h4">Envío confirmado</h2>
-              <p className="mb-0">Documentación enviada correctamente.</p>
+              <div className="col-md-6">
+                <label htmlFor="email" className="form-label fw-semibold">Tu email</label>
+                <input
+                  id="email"
+                  type="email"
+                  className="form-control form-control-lg"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="tuemail@ejemplo.com"
+                  required
+                />
+              </div>
             </div>
-          )}
 
-          {troubleshooting && (
-            <details className="mb-3 text-start">
-              <summary className="fw-semibold text-danger">Ver error</summary>
-              <pre className="bg-light border rounded p-3 mt-2 small text-break text-wrap">{troubleshooting}</pre>
-            </details>
-          )}
-        </div>
+            <div className="card mb-3">
+              <div className="card-body">
+                <h3 className="h4">1. Papelería firmada</h3>
+                <p className="fs-5 mb-2">La firma ya fue colocada correctamente en el documento.</p>
+                <p className="mb-0 fw-semibold text-success">Archivo listo</p>
+              </div>
+            </div>
+
+            <div className="card mb-3">
+              <div className="card-body">
+                <h3 className="h4">2. Foto tuya sosteniendo el DNI</h3>
+                <p className="fs-5">Tu cara y los datos del DNI deben verse claramente en la misma foto.</p>
+                <label htmlFor="foto-dni" className="btn btn-danger btn-lg w-100">
+                  {fotoDni ? 'Cambiar foto' : 'Sacar o elegir foto'}
+                </label>
+                <input
+                  id="foto-dni"
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="d-none"
+                  onChange={(event) => {
+                    setFotoDni(event.target.files?.[0] ?? null)
+                    setEnvioCompleto(false)
+                  }}
+                  required
+                />
+                {fotoDni && <p className="mt-3 mb-0 fw-semibold text-success">Foto lista: {fotoDni.name}</p>}
+              </div>
+            </div>
+
+            <div className="card mb-3">
+              <div className="card-body">
+                <h3 className="h4">3. Comprobante de CBU</h3>
+                <p className="fs-5 mb-1">Puedes cargar cualquiera de estas opciones:</p>
+                <ul className="fs-5">
+                  <li>Ticket del cajero automático.</li>
+                  <li>Captura de la aplicación del banco.</li>
+                  <li>Comprobante emitido por el banco.</li>
+                </ul>
+                <p className="text-secondary">Debe verse el nombre del titular y el CBU.</p>
+                <label htmlFor="comprobante-cbu" className="btn btn-danger btn-lg w-100">
+                  {comprobanteCbu ? 'Cambiar comprobante' : 'Elegir comprobante'}
+                </label>
+                <input
+                  id="comprobante-cbu"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="d-none"
+                  onChange={(event) => {
+                    setComprobanteCbu(event.target.files?.[0] ?? null)
+                    setEnvioCompleto(false)
+                  }}
+                  required
+                />
+                {comprobanteCbu && <p className="mt-3 mb-0 fw-semibold text-success">Comprobante listo: {comprobanteCbu.name}</p>}
+              </div>
+            </div>
+
+            <p className="small text-secondary">Los tres archivos pueden pesar hasta 10 MB en total.</p>
+
+            <button
+              type="submit"
+              className="btn btn-danger btn-lg w-100"
+              disabled={enviando || envioCompleto || !fotoDni || !comprobanteCbu}
+            >
+              {enviando ? 'Enviando...' : envioCompleto ? 'Enviado correctamente' : 'Confirmar y enviar'}
+            </button>
+          </form>
+        )}
+
+        {envioCompleto && (
+          <div className="alert alert-success" role="alert">
+            <h2 className="h4 alert-heading">Envío confirmado</h2>
+            <p className="mb-0">La papelería, la foto con DNI y el comprobante de CBU fueron enviados junto con tu DNI y email.</p>
+          </div>
+        )}
+
+        {mensaje && <p className="mb-3">{mensaje}</p>}
+
+        {troubleshooting && (
+          <details className="mb-3">
+            <summary className="fw-semibold text-danger">Troubleshooting</summary>
+            <pre className="bg-light border rounded p-3 mt-2 small text-break text-wrap">{troubleshooting}</pre>
+          </details>
+        )}
 
         {documentoUrl && (
           <iframe
             title="Previsualizacion del PDF"
             src={documentoUrl}
-            className="w-100 border rounded mt-4"
+            className="w-100 border rounded"
             style={{ height: '70vh' }}
           />
         )}
       </div>
+
     </main>
   )
 }
