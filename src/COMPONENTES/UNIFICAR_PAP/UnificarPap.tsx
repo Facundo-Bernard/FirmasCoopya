@@ -6,7 +6,7 @@ import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
-const FORM_SUBMIT_URL = `https://formsubmit.co/ajax/${DESTINO_EMAIL}`
+const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
 const MAXIMO_ENVIO_BYTES = 10_000_000
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
@@ -125,28 +125,21 @@ function UnificarPap() {
     datos.append('Email informado', email)
     datos.append('_subject', asunto)
     datos.append('_template', 'table')
-    datos.append('Papeleria firmada', blob, `${asunto}.pdf`)
-    datos.append('Foto de la persona con su DNI', fotoDni, fotoDni.name)
-    datos.append('Comprobante de CBU', comprobanteCbu, comprobanteCbu.name)
+    datos.append('_captcha', 'false')
+    datos.append('attachment', blob, `${asunto}.pdf`)
+    datos.append('attachment_2', fotoDni, fotoDni.name)
+    datos.append('attachment_3', comprobanteCbu, comprobanteCbu.name)
 
     try {
       setEnviando(true)
       setMensaje('Enviando papeleria...')
       setTroubleshooting('')
 
-      const respuesta = await fetch(FORM_SUBMIT_URL, {
+      await fetch(FORM_SUBMIT_URL, {
         method: 'POST',
         body: datos,
+        mode: 'no-cors',
       })
-      const resultado = (await respuesta.json()) as {
-        success?: boolean | string
-        message?: string
-        error?: string
-      }
-
-      if (!respuesta.ok || resultado.success === false || resultado.success === 'false') {
-        throw new Error(resultado.error || resultado.message || `Error HTTP ${respuesta.status}`)
-      }
 
       setMensaje('')
       setEnvioCompleto(true)
