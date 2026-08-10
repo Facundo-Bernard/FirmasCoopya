@@ -163,12 +163,12 @@ function UnificarPap() {
           Volver
         </Link>
 
-        <h1 className="fw-bold text-danger mb-4">Aplicar firma en papelería</h1>
+        <h1 className="fw-bold text-dark mb-4">Aplicar firma en papelería</h1>
 
         <div className="mb-3">
-          <p>Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
-          <label htmlFor="pdf" className="form-label">Selecciona un PDF</label>
-          <input id="pdf" type="file" accept="application/pdf" className="form-control" onChange={cargarPdf} />
+          <p className="fs-5">Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
+          <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
+          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} />
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
@@ -187,9 +187,9 @@ function UnificarPap() {
         </div>
 
         {mostrarEnvio && documentoBytes && (
-          <form className="border rounded p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
-            <h2 className="h4 mb-2">Último paso</h2>
-            <p className="text-secondary">Completa tus datos y prepara los tres archivos indicados.</p>
+          <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
+            <h2 className="h3 mb-2">Último paso</h2>
+            <p className="fs-5 text-secondary mb-4">Completa tus datos y prepara los tres archivos indicados.</p>
 
             <div className="row g-3 mb-4">
               <div className="col-md-6">
@@ -221,21 +221,19 @@ function UnificarPap() {
               </div>
             </div>
 
-            <div className="card mb-3 border-success">
+            <div className="card mb-3">
               <div className="card-body">
-                <div className="d-flex justify-content-between gap-2">
-                  <h3 className="h5 mb-1">1. Papelería firmada</h3>
-                  <span className="badge text-bg-success align-self-start">Lista</span>
-                </div>
-                <p className="mb-0 text-secondary">La firma ya fue colocada correctamente en el documento.</p>
+                <h3 className="h4">1. Papelería firmada</h3>
+                <p className="fs-5 mb-2">La firma ya fue colocada correctamente en el documento.</p>
+                <p className="mb-0 fw-semibold text-success">Archivo listo</p>
               </div>
             </div>
 
-            <div className={`card mb-3 ${fotoDni ? 'border-success' : ''}`}>
+            <div className="card mb-3">
               <div className="card-body">
-                <h3 className="h5">2. Foto tuya sosteniendo el DNI</h3>
-                <p>Tu cara y los datos del DNI deben verse claramente en la misma foto.</p>
-                <label htmlFor="foto-dni" className="btn btn-outline-danger btn-lg w-100">
+                <h3 className="h4">2. Foto tuya sosteniendo el DNI</h3>
+                <p className="fs-5">Tu cara y los datos del DNI deben verse claramente en la misma foto.</p>
+                <label htmlFor="foto-dni" className="btn btn-outline-secondary btn-lg w-100">
                   {fotoDni ? 'Cambiar foto' : 'Sacar o elegir foto'}
                 </label>
                 <input
@@ -250,21 +248,21 @@ function UnificarPap() {
                   }}
                   required
                 />
-                {fotoDni && <div className="alert alert-success py-2 mt-3 mb-0">Foto lista: {fotoDni.name}</div>}
+                {fotoDni && <p className="mt-3 mb-0 fw-semibold text-success">Foto lista: {fotoDni.name}</p>}
               </div>
             </div>
 
-            <div className={`card mb-3 ${comprobanteCbu ? 'border-success' : ''}`}>
+            <div className="card mb-3">
               <div className="card-body">
-                <h3 className="h5">3. Comprobante de CBU</h3>
-                <p className="mb-1">Puedes cargar cualquiera de estas opciones:</p>
-                <ul>
+                <h3 className="h4">3. Comprobante de CBU</h3>
+                <p className="fs-5 mb-1">Puedes cargar cualquiera de estas opciones:</p>
+                <ul className="fs-5">
                   <li>Ticket del cajero automático.</li>
                   <li>Captura de la aplicación del banco.</li>
                   <li>Comprobante emitido por el banco.</li>
                 </ul>
-                <p className="small text-secondary">Debe verse el nombre del titular y el CBU.</p>
-                <label htmlFor="comprobante-cbu" className="btn btn-outline-danger btn-lg w-100">
+                <p className="text-secondary">Debe verse el nombre del titular y el CBU.</p>
+                <label htmlFor="comprobante-cbu" className="btn btn-outline-secondary btn-lg w-100">
                   {comprobanteCbu ? 'Cambiar comprobante' : 'Elegir comprobante'}
                 </label>
                 <input
@@ -278,7 +276,7 @@ function UnificarPap() {
                   }}
                   required
                 />
-                {comprobanteCbu && <div className="alert alert-success py-2 mt-3 mb-0">Comprobante listo: {comprobanteCbu.name}</div>}
+                {comprobanteCbu && <p className="mt-3 mb-0 fw-semibold text-success">Comprobante listo: {comprobanteCbu.name}</p>}
               </div>
             </div>
 
