@@ -36,8 +36,10 @@ function UnificarPap() {
   const [troubleshooting, setTroubleshooting] = useState('')
   const [dni, setDni] = useState('')
   const [email, setEmail] = useState('')
-  const [adjuntos, setAdjuntos] = useState<File[]>([])
+  const [fotoDni, setFotoDni] = useState<File | null>(null)
+  const [comprobanteCbu, setComprobanteCbu] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [envioCompleto, setEnvioCompleto] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
 
   useEffect(() => {
@@ -60,6 +62,10 @@ function UnificarPap() {
     setDocumentoUrl(URL.createObjectURL(archivo))
     setMensaje('')
     setTroubleshooting('')
+    setFotoDni(null)
+    setComprobanteCbu(null)
+    setEnvioCompleto(false)
+    setMostrarEnvio(false)
   }
 
   const unificar = async () => {
@@ -91,7 +97,7 @@ function UnificarPap() {
   const enviarDocumento = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!documentoBytes || enviando) {
+    if (!documentoBytes || !fotoDni || !comprobanteCbu || enviando) {
       return
     }
 
@@ -104,7 +110,7 @@ function UnificarPap() {
 
     const asunto = `PAPELERIA ${dniLimpio}`
     const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
-    const totalBytes = blob.size + adjuntos.reduce((total, archivo) => total + archivo.size, 0)
+    const totalBytes = blob.size + fotoDni.size + comprobanteCbu.size
 
     if (totalBytes > MAXIMO_ENVIO_BYTES) {
       setMensaje('El PDF y los archivos adicionales superan el limite total de 10 MB.')
@@ -112,12 +118,14 @@ function UnificarPap() {
     }
 
     const datos = new FormData()
-    datos.append('dni', dniLimpio)
+    datos.append('DNI', dniLimpio)
     datos.append('email', email)
+    datos.append('Email informado', email)
     datos.append('_subject', asunto)
     datos.append('_template', 'table')
-    datos.append('documento', blob, `${asunto}.pdf`)
-    adjuntos.forEach((archivo) => datos.append('adjuntos', archivo))
+    datos.append('Papeleria firmada', blob, `${asunto}.pdf`)
+    datos.append('Foto de la persona con su DNI', fotoDni, fotoDni.name)
+    datos.append('Comprobante de CBU', comprobanteCbu, comprobanteCbu.name)
 
     try {
       setEnviando(true)
@@ -138,7 +146,8 @@ function UnificarPap() {
         throw new Error(resultado.error || resultado.message || `Error HTTP ${respuesta.status}`)
       }
 
-      setMensaje(`Papeleria enviada a ${DESTINO_EMAIL}. Si es el primer envio, confirma el correo de activacion de FormSubmit.`)
+      setMensaje('')
+      setEnvioCompleto(true)
     } catch (error) {
       setMensaje('No se pudo enviar la papeleria.')
       setTroubleshooting(describirError(error))
@@ -178,45 +187,118 @@ function UnificarPap() {
         </div>
 
         {mostrarEnvio && documentoBytes && (
-          <form className="border rounded p-3 mb-3" onSubmit={enviarDocumento}>
-            <label htmlFor="dni" className="form-label">Completa tu DNI</label>
-            <input
-              id="dni"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="form-control mb-3"
-              value={dni}
-              onChange={(event) => setDni(event.target.value)}
-              placeholder="DNI"
-              required
-            />
+          <form className="border rounded p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
+            <h2 className="h4 mb-2">Último paso</h2>
+            <p className="text-secondary">Completa tus datos y prepara los tres archivos indicados.</p>
 
-            <label htmlFor="email" className="form-label">Completa tu email</label>
-            <input
-              id="email"
-              type="email"
-              className="form-control mb-3"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="tuemail@ejemplo.com"
-              required
-            />
+            <div className="row g-3 mb-4">
+              <div className="col-md-6">
+                <label htmlFor="dni" className="form-label fw-semibold">Tu DNI</label>
+                <input
+                  id="dni"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="form-control form-control-lg"
+                  value={dni}
+                  onChange={(event) => setDni(event.target.value)}
+                  placeholder="Ejemplo: 30123456"
+                  required
+                />
+              </div>
 
-            <label htmlFor="adjuntos" className="form-label">Fotos o archivos adicionales (opcional)</label>
-            <input
-              id="adjuntos"
-              type="file"
-              multiple
-              className="form-control mb-2"
-              onChange={(event) => setAdjuntos(Array.from(event.target.files ?? []))}
-            />
-            <div className="form-text mb-3">El PDF y los archivos adicionales pueden pesar hasta 10 MB en total.</div>
+              <div className="col-md-6">
+                <label htmlFor="email" className="form-label fw-semibold">Tu email</label>
+                <input
+                  id="email"
+                  type="email"
+                  className="form-control form-control-lg"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="tuemail@ejemplo.com"
+                  required
+                />
+              </div>
+            </div>
 
-            <button type="submit" className="btn btn-danger" disabled={enviando}>
-              {enviando ? 'Enviando...' : 'Enviar papelería'}
+            <div className="card mb-3 border-success">
+              <div className="card-body">
+                <div className="d-flex justify-content-between gap-2">
+                  <h3 className="h5 mb-1">1. Papelería firmada</h3>
+                  <span className="badge text-bg-success align-self-start">Lista</span>
+                </div>
+                <p className="mb-0 text-secondary">La firma ya fue colocada correctamente en el documento.</p>
+              </div>
+            </div>
+
+            <div className={`card mb-3 ${fotoDni ? 'border-success' : ''}`}>
+              <div className="card-body">
+                <h3 className="h5">2. Foto tuya sosteniendo el DNI</h3>
+                <p>Tu cara y los datos del DNI deben verse claramente en la misma foto.</p>
+                <label htmlFor="foto-dni" className="btn btn-outline-danger btn-lg w-100">
+                  {fotoDni ? 'Cambiar foto' : 'Sacar o elegir foto'}
+                </label>
+                <input
+                  id="foto-dni"
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="d-none"
+                  onChange={(event) => {
+                    setFotoDni(event.target.files?.[0] ?? null)
+                    setEnvioCompleto(false)
+                  }}
+                  required
+                />
+                {fotoDni && <div className="alert alert-success py-2 mt-3 mb-0">Foto lista: {fotoDni.name}</div>}
+              </div>
+            </div>
+
+            <div className={`card mb-3 ${comprobanteCbu ? 'border-success' : ''}`}>
+              <div className="card-body">
+                <h3 className="h5">3. Comprobante de CBU</h3>
+                <p className="mb-1">Puedes cargar cualquiera de estas opciones:</p>
+                <ul>
+                  <li>Ticket del cajero automático.</li>
+                  <li>Captura de la aplicación del banco.</li>
+                  <li>Comprobante emitido por el banco.</li>
+                </ul>
+                <p className="small text-secondary">Debe verse el nombre del titular y el CBU.</p>
+                <label htmlFor="comprobante-cbu" className="btn btn-outline-danger btn-lg w-100">
+                  {comprobanteCbu ? 'Cambiar comprobante' : 'Elegir comprobante'}
+                </label>
+                <input
+                  id="comprobante-cbu"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="d-none"
+                  onChange={(event) => {
+                    setComprobanteCbu(event.target.files?.[0] ?? null)
+                    setEnvioCompleto(false)
+                  }}
+                  required
+                />
+                {comprobanteCbu && <div className="alert alert-success py-2 mt-3 mb-0">Comprobante listo: {comprobanteCbu.name}</div>}
+              </div>
+            </div>
+
+            <p className="small text-secondary">Los tres archivos pueden pesar hasta 10 MB en total.</p>
+
+            <button
+              type="submit"
+              className="btn btn-danger btn-lg w-100"
+              disabled={enviando || envioCompleto || !fotoDni || !comprobanteCbu}
+            >
+              {enviando ? 'Enviando...' : envioCompleto ? 'Enviado correctamente' : 'Confirmar y enviar'}
             </button>
           </form>
+        )}
+
+        {envioCompleto && (
+          <div className="alert alert-success" role="alert">
+            <h2 className="h4 alert-heading">Envío confirmado</h2>
+            <p className="mb-0">La papelería, la foto con DNI y el comprobante de CBU fueron enviados junto con tu DNI y email.</p>
+          </div>
         )}
 
         {mensaje && <p className="mb-3">{mensaje}</p>}
