@@ -6,6 +6,7 @@ import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
+const RECORDATORIO_ADJUNTO = 'No te olvides colocar la papeleria firmada que se acaba de descargar en el mail !'
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -138,6 +139,7 @@ function UnificarPap() {
           gmailAbierto = true
           limpiarEventos()
           setMensaje('PDF guardado. Abriendo Gmail...')
+          window.alert(RECORDATORIO_ADJUNTO)
           window.location.href = enlaceApp
         }
         const abrirGmailAlVolver = () => {
@@ -176,6 +178,8 @@ function UnificarPap() {
     }
 
     if (!esMobile) {
+      descargarArchivo()
+      window.alert(RECORDATORIO_ADJUNTO)
       window.open(gmail, '_blank', 'noopener,noreferrer')
     } else {
       const esAndroid = /Android/i.test(navigator.userAgent)
@@ -188,6 +192,8 @@ function UnificarPap() {
       }
 
       document.addEventListener('visibilitychange', detectarCambio, { once: true })
+      descargarArchivo()
+      window.alert(RECORDATORIO_ADJUNTO)
       window.location.href = enlaceApp
       window.setTimeout(() => {
         document.removeEventListener('visibilitychange', detectarCambio)
@@ -195,10 +201,8 @@ function UnificarPap() {
           window.location.href = mailto
         }
       }, 1200)
-
     }
 
-    descargarArchivo()
     setMensaje('Se abrio Gmail y se descargo el PDF. Adjuntalo al correo antes de enviarlo.')
   }
 
@@ -215,6 +219,7 @@ function UnificarPap() {
     const enlaceApp = `googlegmail:///co?to=${encodeURIComponent(DESTINO_EMAIL)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`
 
     setPuedeAbrirEmail(false)
+    window.alert(RECORDATORIO_ADJUNTO)
     window.location.href = enlaceApp
   }
 
