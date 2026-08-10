@@ -40,6 +40,7 @@ function UnificarPap() {
   const [comprobanteCbu, setComprobanteCbu] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [envioCompleto, setEnvioCompleto] = useState(false)
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
 
   useEffect(() => {
@@ -65,6 +66,7 @@ function UnificarPap() {
     setFotoDni(null)
     setComprobanteCbu(null)
     setEnvioCompleto(false)
+    setMostrarConfirmacion(false)
     setMostrarEnvio(false)
   }
 
@@ -148,6 +150,7 @@ function UnificarPap() {
 
       setMensaje('')
       setEnvioCompleto(true)
+      setMostrarConfirmacion(true)
     } catch (error) {
       setMensaje('No se pudo enviar la papeleria.')
       setTroubleshooting(describirError(error))
@@ -223,15 +226,7 @@ function UnificarPap() {
 
             <div className="card mb-3">
               <div className="card-body">
-                <h3 className="h4">1. Papelería firmada</h3>
-                <p className="fs-5 mb-2">La firma ya fue colocada correctamente en el documento.</p>
-                <p className="mb-0 fw-semibold text-success">Archivo listo</p>
-              </div>
-            </div>
-
-            <div className="card mb-3">
-              <div className="card-body">
-                <h3 className="h4">2. Foto tuya sosteniendo el DNI</h3>
+                <h3 className="h4">1. Foto tuya sosteniendo el DNI</h3>
                 <p className="fs-5">Tu cara y los datos del DNI deben verse claramente en la misma foto.</p>
                 <label htmlFor="foto-dni" className="btn btn-danger btn-lg w-100">
                   {fotoDni ? 'Cambiar foto' : 'Sacar o elegir foto'}
@@ -252,35 +247,32 @@ function UnificarPap() {
               </div>
             </div>
 
-            <div className="card mb-3">
-              <div className="card-body">
-                <h3 className="h4">3. Comprobante de CBU</h3>
-                <p className="fs-5 mb-1">Puedes cargar cualquiera de estas opciones:</p>
-                <ul className="fs-5">
-                  <li>Ticket del cajero automático.</li>
-                  <li>Captura de la aplicación del banco.</li>
-                  <li>Comprobante emitido por el banco.</li>
-                </ul>
-                <p className="text-secondary">Debe verse el nombre del titular y el CBU.</p>
-                <label htmlFor="comprobante-cbu" className="btn btn-danger btn-lg w-100">
-                  {comprobanteCbu ? 'Cambiar comprobante' : 'Elegir comprobante'}
-                </label>
-                <input
-                  id="comprobante-cbu"
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="d-none"
-                  onChange={(event) => {
-                    setComprobanteCbu(event.target.files?.[0] ?? null)
-                    setEnvioCompleto(false)
-                  }}
-                  required
-                />
-                {comprobanteCbu && <p className="mt-3 mb-0 fw-semibold text-success">Comprobante listo: {comprobanteCbu.name}</p>}
+            {fotoDni && (
+              <div className="card mb-3">
+                <div className="card-body">
+                  <h3 className="h4">2. Comprobante de CBU</h3>
+                  <p className="fs-5 mb-1">Ticket, captura de la aplicación o comprobante del banco.</p>
+                  <p className="text-secondary">Debe verse el nombre del titular y el CBU.</p>
+                  <label htmlFor="comprobante-cbu" className="btn btn-danger btn-lg w-100">
+                    {comprobanteCbu ? 'Cambiar comprobante' : 'Elegir comprobante'}
+                  </label>
+                  <input
+                    id="comprobante-cbu"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="d-none"
+                    onChange={(event) => {
+                      setComprobanteCbu(event.target.files?.[0] ?? null)
+                      setEnvioCompleto(false)
+                    }}
+                    required
+                  />
+                  {comprobanteCbu && <p className="mt-3 mb-0 fw-semibold text-success">Comprobante listo: {comprobanteCbu.name}</p>}
+                </div>
               </div>
-            </div>
+            )}
 
-            <p className="small text-secondary">Los tres archivos pueden pesar hasta 10 MB en total.</p>
+            <p className="small text-secondary">Los archivos pueden pesar hasta 10 MB en total.</p>
 
             <button
               type="submit"
@@ -290,13 +282,6 @@ function UnificarPap() {
               {enviando ? 'Enviando...' : envioCompleto ? 'Enviado correctamente' : 'Confirmar y enviar'}
             </button>
           </form>
-        )}
-
-        {envioCompleto && (
-          <div className="alert alert-success" role="alert">
-            <h2 className="h4 alert-heading">Envío confirmado</h2>
-            <p className="mb-0">La papelería, la foto con DNI y el comprobante de CBU fueron enviados junto con tu DNI y email.</p>
-          </div>
         )}
 
         {mensaje && <p className="mb-3">{mensaje}</p>}
@@ -317,6 +302,25 @@ function UnificarPap() {
           />
         )}
       </div>
+
+      {mostrarConfirmacion && (
+        <>
+          <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content text-center">
+                <div className="modal-body p-4">
+                  <h2 className="h4 mb-3">Envío confirmado</h2>
+                  <p className="fs-5 mb-4">Las firmas, el CBU y el DNI se han enviado correctamente.</p>
+                  <button type="button" className="btn btn-danger btn-lg w-100" onClick={() => setMostrarConfirmacion(false)}>
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" />
+        </>
+      )}
 
     </main>
   )
