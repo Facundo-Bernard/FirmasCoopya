@@ -11,6 +11,6 @@ npm run dev
 
 ## Envío de correo
 
-El formulario utiliza FormSubmit para enviar la papelería a `info@asistodo.com.ar` en un solo correo. Adjunta el PDF firmado y un segundo PDF con la foto de la persona sosteniendo su DNI y el comprobante bancario, con un límite total de 10 MB.
+El formulario utiliza FormSubmit para enviar la papelería a `info@asistodo.com.ar` en un solo correo. Adjunta el PDF firmado y un segundo PDF con la foto de la persona sosteniendo su DNI, el frente y dorso del documento y el comprobante bancario, con un límite total de 10 MB.
 
 La primera vez, FormSubmit envía un mensaje de activación a `info@asistodo.com.ar`. Es necesario confirmar ese mensaje una sola vez para habilitar las entregas posteriores.

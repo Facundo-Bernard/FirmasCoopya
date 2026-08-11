@@ -38,6 +38,8 @@ function UnificarPap() {
   const [dni, setDni] = useState('')
   const [email, setEmail] = useState('')
   const [fotoDni, setFotoDni] = useState<File | null>(null)
+  const [dniFrente, setDniFrente] = useState<File | null>(null)
+  const [dniDorso, setDniDorso] = useState<File | null>(null)
   const [comprobanteCbu, setComprobanteCbu] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [envioCompleto, setEnvioCompleto] = useState(false)
@@ -65,6 +67,8 @@ function UnificarPap() {
     setMensaje('')
     setTroubleshooting('')
     setFotoDni(null)
+    setDniFrente(null)
+    setDniDorso(null)
     setComprobanteCbu(null)
     setEnvioCompleto(false)
     setMostrarConfirmacion(false)
@@ -100,7 +104,7 @@ function UnificarPap() {
   const enviarDocumento = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!documentoBytes || !fotoDni || !comprobanteCbu || enviando) {
+    if (!documentoBytes || !fotoDni || !dniFrente || !dniDorso || !comprobanteCbu || enviando) {
       return
     }
 
@@ -119,7 +123,7 @@ function UnificarPap() {
       setTroubleshooting('')
 
       const pdfFirmado = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
-      const documentacionBytes = await crearPdfDocumentacion([fotoDni, comprobanteCbu])
+      const documentacionBytes = await crearPdfDocumentacion([fotoDni, dniFrente, dniDorso, comprobanteCbu])
       const documentacion = new Blob([copiarArrayBuffer(documentacionBytes)], { type: 'application/pdf' })
       const totalBytes = pdfFirmado.size + documentacion.size
 
@@ -187,7 +191,7 @@ function UnificarPap() {
         {mostrarEnvio && documentoBytes && (
           <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
             <h2 className="h3 mb-2">Último paso</h2>
-            <p className="fs-5 text-secondary mb-4">Completa tus datos y prepara los tres archivos indicados.</p>
+            <p className="fs-5 text-secondary mb-4">Completa tus datos y las fotos solicitadas.</p>
 
             <div className="row g-3 mb-4">
               <div className="col-md-6">
@@ -245,7 +249,48 @@ function UnificarPap() {
             {fotoDni && (
               <div className="card mb-3">
                 <div className="card-body">
-                  <h3 className="h4">2. Comprobante de CBU</h3>
+                  <h3 className="h4">2. Fotos del DNI</h3>
+                  <p className="fs-5">Los datos deben verse claramente.</p>
+
+                  <label htmlFor="dni-frente" className="btn btn-danger btn-lg w-100 mb-2">
+                    {dniFrente ? 'Cambiar frente del DNI' : 'Sacar o elegir frente'}
+                  </label>
+                  <input
+                    id="dni-frente"
+                    type="file"
+                    accept="image/*"
+                    className="d-none"
+                    onChange={(event) => {
+                      setDniFrente(event.target.files?.[0] ?? null)
+                      setEnvioCompleto(false)
+                    }}
+                    required
+                  />
+                  {dniFrente && <p className="mb-3 fw-semibold text-success">Frente listo</p>}
+
+                  <label htmlFor="dni-dorso" className="btn btn-danger btn-lg w-100">
+                    {dniDorso ? 'Cambiar dorso del DNI' : 'Sacar o elegir dorso'}
+                  </label>
+                  <input
+                    id="dni-dorso"
+                    type="file"
+                    accept="image/*"
+                    className="d-none"
+                    onChange={(event) => {
+                      setDniDorso(event.target.files?.[0] ?? null)
+                      setEnvioCompleto(false)
+                    }}
+                    required
+                  />
+                  {dniDorso && <p className="mt-3 mb-0 fw-semibold text-success">Dorso listo</p>}
+                </div>
+              </div>
+            )}
+
+            {dniFrente && dniDorso && (
+              <div className="card mb-3">
+                <div className="card-body">
+                  <h3 className="h4">3. Comprobante de CBU</h3>
                   <p className="fs-5 mb-1">Ticket, captura de la aplicación o comprobante del banco.</p>
                   <p className="text-secondary">Debe verse el nombre del titular y el CBU.</p>
                   <label htmlFor="comprobante-cbu" className="btn btn-danger btn-lg w-100">
@@ -272,7 +317,7 @@ function UnificarPap() {
             <button
               type="submit"
               className="btn btn-danger btn-lg w-100"
-              disabled={enviando || envioCompleto || !fotoDni || !comprobanteCbu}
+              disabled={enviando || envioCompleto || !fotoDni || !dniFrente || !dniDorso || !comprobanteCbu}
             >
               {enviando ? 'Enviando...' : envioCompleto ? 'Enviado correctamente' : 'Confirmar y enviar'}
             </button>
