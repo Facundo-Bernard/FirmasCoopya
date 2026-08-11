@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
+import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
 
@@ -111,29 +112,30 @@ function UnificarPap() {
     }
 
     const asunto = `PAPELERIA ${dniLimpio}`
-    const blob = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
-    const totalBytes = blob.size + fotoDni.size + comprobanteCbu.size
-
-    if (totalBytes > MAXIMO_ENVIO_BYTES) {
-      setMensaje('El PDF y los archivos adicionales superan el limite total de 10 MB.')
-      return
-    }
-
-    const datos = new FormData()
-    datos.append('DNI', dniLimpio)
-    datos.append('email', email)
-    datos.append('Email informado', email)
-    datos.append('_subject', asunto)
-    datos.append('_template', 'table')
-    datos.append('_captcha', 'false')
-    datos.append('attachment', blob, `${asunto}.pdf`)
-    datos.append('attachment', fotoDni, `FOTO_DNI_${dniLimpio}_${fotoDni.name}`)
-    datos.append('attachment', comprobanteCbu, `COMPROBANTE_CBU_${dniLimpio}_${comprobanteCbu.name}`)
 
     try {
       setEnviando(true)
       setMensaje('Enviando papeleria...')
       setTroubleshooting('')
+
+      const pdfFirmado = new Blob([copiarArrayBuffer(documentoBytes)], { type: 'application/pdf' })
+      const documentacionBytes = await crearPdfDocumentacion([fotoDni, comprobanteCbu])
+      const documentacion = new Blob([copiarArrayBuffer(documentacionBytes)], { type: 'application/pdf' })
+      const totalBytes = pdfFirmado.size + documentacion.size
+
+      if (totalBytes > MAXIMO_ENVIO_BYTES) {
+        throw new Error('Los dos archivos superan el limite total de 10 MB.')
+      }
+
+      const datos = new FormData()
+      datos.append('DNI', dniLimpio)
+      datos.append('email', email)
+      datos.append('Email informado', email)
+      datos.append('_subject', asunto)
+      datos.append('_template', 'table')
+      datos.append('_captcha', 'false')
+      datos.append('attachment', pdfFirmado, `${asunto}.pdf`)
+      datos.append('attachment_2', documentacion, `DOCUMENTACION_${dniLimpio}.pdf`)
 
       await fetch(FORM_SUBMIT_URL, {
         method: 'POST',
@@ -252,7 +254,7 @@ function UnificarPap() {
                   <input
                     id="comprobante-cbu"
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept="image/*"
                     className="d-none"
                     onChange={(event) => {
                       setComprobanteCbu(event.target.files?.[0] ?? null)
