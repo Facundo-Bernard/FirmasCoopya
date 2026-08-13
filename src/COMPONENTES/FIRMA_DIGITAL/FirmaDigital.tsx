@@ -53,11 +53,11 @@ function FirmaDigital() {
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
-        <Link to="/" className="btn btn-link text-danger px-0 mb-3">
+        <Link to="/" className="btn btn-link text-primary px-0 mb-3">
           Volver
         </Link>
 
-        <h1 className="fw-bold text-danger mb-2">Firma Electrónica</h1>
+        <h1 className="fw-bold text-primary mb-2">Firma Electrónica</h1>
         <p className="fs-5 mb-2">Dibuja con el dedo debajo</p>
 
         <div className="firma-pad border rounded-4 bg-light overflow-hidden mb-3 mx-auto">
@@ -73,16 +73,16 @@ function FirmaDigital() {
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-4">
-          <button type="button" className="btn btn-outline-danger" onClick={borrarFirma}>
+          <button type="button" className="btn btn-outline-primary" onClick={borrarFirma}>
             Limpiar
           </button>
 
           {!disabled ? (
-            <Link to="/unificarpap" className="btn btn-danger">
+            <Link to="/unificarpap" className="btn btn-primary">
               Siguiente
             </Link>
           ) : (
-            <button type="button" className="btn btn-danger" disabled>
+            <button type="button" className="btn btn-primary" disabled>
               Siguiente
             </button>
           )}
@@ -90,10 +90,10 @@ function FirmaDigital() {
 
         {firmaPng && (
           <details className="mb-3">
-            <summary className="fw-semibold text-danger">Firma aceptada ! (Opcionalmente, haz click para ver)</summary>
+            <summary className="fw-semibold text-primary">Firma aceptada ! (Opcionalmente, haz click para ver)</summary>
             <div className="pt-3 d-flex flex-column align-items-start gap-2">
               <img src={firmaPng} alt="Firma aceptada" className="img-fluid border rounded bg-white p-2" />
-              <button type="button" className="btn btn-danger" onClick={descargarFirma}>
+              <button type="button" className="btn btn-primary" onClick={descargarFirma}>
                 (Opcional) Descargar firma
               </button>
             </div>

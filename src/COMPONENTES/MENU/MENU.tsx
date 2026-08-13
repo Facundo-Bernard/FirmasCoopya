@@ -5,21 +5,21 @@ function MENU() {
     <main className="min-vh-100 bg-white d-flex align-items-center">
       <div className="container py-5">
         <header className="text-center mb-5">
-          <h1 className="display-5 fw-bold text-danger mb-0">Tipo de firma</h1>
+          <h1 className="display-5 fw-bold text-primary mb-0">Tipo de firma</h1>
         </header>
 
         <section className="d-grid gap-3 mx-auto" style={{ maxWidth: '18rem' }} aria-label="Tipos de firma">
-          <Link to="/firma-digital" className="btn btn-danger btn-lg rounded-4 shadow-sm">
+          <Link to="/firma-digital" className="btn btn-primary btn-lg rounded-4 shadow-sm">
             Electrónica
           </Link>
-          <button type="button" className="btn btn-danger btn-lg rounded-4 shadow-sm">
+          <button type="button" className="btn btn-primary btn-lg rounded-4 shadow-sm">
             Digital
           </button>
         </section>
 
         <footer className="mt-5 text-start">
 <footer className="mt-5 text-start">
-  <h2 className="h5 text-danger mb-3">¿Cuál debo elegir?</h2>
+  <h2 className="h5 text-primary mb-3">¿Cuál debo elegir?</h2>
 
   <div className="border rounded-4 p-3 mb-3 bg-light">
     <h3 className="h6 fw-bold">Firma Digital</h3>
@@ -47,7 +47,7 @@ function MENU() {
         </footer>
 
         <div className="text-center mt-4">
-          <Link to="/tutorial" className="btn btn-outline-danger">
+          <Link to="/tutorial" className="btn btn-outline-primary">
             Tutorial
           </Link>
         </div>

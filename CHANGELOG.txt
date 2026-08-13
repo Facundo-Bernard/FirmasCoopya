@@ -1,0 +1,49 @@
+FirmaCoopya - Historial de versiones
+=====================================
+
+El proyecto utiliza versionado semántico: MAYOR.MENOR.PARCHE.
+
+- MAYOR: cambio incompatible en el flujo o la arquitectura.
+- MENOR: nueva funcionalidad compatible.
+- PARCHE: corrección sin cambios funcionales importantes.
+
+
+[0.2.0] - PLANIFICADA
+---------------------
+
+Rediseño con backend y trámites vinculados.
+
+- Panel privado para comercializadores.
+- Alta de clientes y carga previa de su papelería.
+- Generación de un enlace seguro y único por trámite.
+- Recuperación automática de la papelería desde el enlace.
+- Aplicación de la firma en el documento asociado al trámite.
+- Persistencia de estados, documentos y evidencias.
+- Envío del correo y sus adjuntos desde el backend.
+- Registro básico de auditoría y reintentos de correo.
+
+
+[0.1.1] - SIN PUBLICAR
+----------------------
+
+- Reemplazo de los selectores de imágenes por captura directa con cámara.
+- Mensaje bloqueante cuando no hay cámara, HTTPS o permiso disponible.
+- Cierre automático de la cámara después de capturar o cancelar.
+- Validación de resolución, formato y tamaño de las imágenes generadas.
+- Encabezados de seguridad para restringir cámara, iframes y recursos externos.
+
+
+[0.1.0] - 2026-08-11
+--------------------
+
+Primera versión funcional del frontend.
+
+- Firma electrónica manuscrita con mouse o pantalla táctil.
+- Persistencia temporal de la firma mediante Redux.
+- Carga manual de un PDF desde el navegador.
+- Búsqueda de la marca "firma_aqui" y colocación de la firma.
+- Captura obligatoria de foto con DNI, selfie guiñando, frente y dorso
+  del DNI y comprobante de CBU.
+- Creación de un PDF con la documentación capturada.
+- Envío mediante FormSubmit del PDF firmado y la documentación.
+- Compatibilidad de navegación con Vercel.

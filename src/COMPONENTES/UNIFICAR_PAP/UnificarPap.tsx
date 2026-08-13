@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
+import CapturaCamara from './CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
 const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
@@ -169,7 +170,7 @@ function UnificarPap() {
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
-        <Link to="/firma-digital" className="btn btn-link text-danger px-0 mb-3">
+        <Link to="/firma-digital" className="btn btn-link text-primary px-0 mb-3">
           Volver
         </Link>
 
@@ -182,13 +183,13 @@ function UnificarPap() {
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
-          <button type="button" className="btn btn-danger" onClick={unificar}>
+          <button type="button" className="btn btn-primary" onClick={unificar}>
             Colocar firma
           </button>
 
           <button
             type="button"
-            className="btn btn-danger"
+            className="btn btn-primary"
             onClick={() => setMostrarEnvio(true)}
             disabled={!documentoBytes || mostrarEnvio}
           >
@@ -235,22 +236,17 @@ function UnificarPap() {
               <div className="card-body">
                 <h3 className="h4">1. Foto tuya sosteniendo el DNI</h3>
                 <p className="fs-5">Tu cara y los datos del DNI deben verse claramente en la misma foto.</p>
-                <label htmlFor="foto-dni" className="btn btn-danger btn-lg w-100">
-                  {fotoDni ? 'Volver a sacar la foto' : 'Sacar foto'}
-                </label>
-                <input
-                  id="foto-dni"
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  className="d-none"
-                  onChange={(event) => {
-                    setFotoDni(event.target.files?.[0] ?? null)
+                <CapturaCamara
+                  foto={fotoDni}
+                  nombre="selfie-dni"
+                  facingMode="user"
+                  textoBoton="foto"
+                  onCapture={(foto) => {
+                    setFotoDni(foto)
                     setEnvioCompleto(false)
                   }}
-                  required
                 />
-                {fotoDni && <p className="mt-3 mb-0 fw-semibold text-success">Foto lista: {fotoDni.name}</p>}
+                {fotoDni && <p className="mt-3 mb-0 fw-semibold text-success">Foto lista</p>}
               </div>
             </div>
 
@@ -259,20 +255,15 @@ function UnificarPap() {
                 <div className="card-body">
                   <h3 className="h4">2. Foto guiñando</h3>
                   <p className="fs-5">Mira a la cámara y guiña un ojo.</p>
-                  <label htmlFor="foto-guino" className="btn btn-danger btn-lg w-100">
-                    {fotoGuino ? 'Volver a sacar la foto' : 'Sacar foto guiñando'}
-                  </label>
-                  <input
-                    id="foto-guino"
-                    type="file"
-                    accept="image/*"
-                    capture="user"
-                    className="d-none"
-                    onChange={(event) => {
-                      setFotoGuino(event.target.files?.[0] ?? null)
+                  <CapturaCamara
+                    foto={fotoGuino}
+                    nombre="selfie-guino"
+                    facingMode="user"
+                    textoBoton="foto guiñando"
+                    onCapture={(foto) => {
+                      setFotoGuino(foto)
                       setEnvioCompleto(false)
                     }}
-                    required
                   />
                   {fotoGuino && <p className="mt-3 mb-0 fw-semibold text-success">Foto lista</p>}
                 </div>
@@ -285,37 +276,29 @@ function UnificarPap() {
                   <h3 className="h4">3. Fotos del DNI</h3>
                   <p className="fs-5">Los datos deben verse claramente.</p>
 
-                  <label htmlFor="dni-frente" className="btn btn-danger btn-lg w-100 mb-2">
-                    {dniFrente ? 'Volver a sacar el frente' : 'Sacar foto del frente'}
-                  </label>
-                  <input
-                    id="dni-frente"
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="d-none"
-                    onChange={(event) => {
-                      setDniFrente(event.target.files?.[0] ?? null)
-                      setEnvioCompleto(false)
-                    }}
-                    required
-                  />
+                  <div className="mb-2">
+                    <CapturaCamara
+                      foto={dniFrente}
+                      nombre="dni-frente"
+                      facingMode="environment"
+                      textoBoton="foto del frente"
+                      onCapture={(foto) => {
+                        setDniFrente(foto)
+                        setEnvioCompleto(false)
+                      }}
+                    />
+                  </div>
                   {dniFrente && <p className="mb-3 fw-semibold text-success">Frente listo</p>}
 
-                  <label htmlFor="dni-dorso" className="btn btn-danger btn-lg w-100">
-                    {dniDorso ? 'Volver a sacar el dorso' : 'Sacar foto del dorso'}
-                  </label>
-                  <input
-                    id="dni-dorso"
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="d-none"
-                    onChange={(event) => {
-                      setDniDorso(event.target.files?.[0] ?? null)
+                  <CapturaCamara
+                    foto={dniDorso}
+                    nombre="dni-dorso"
+                    facingMode="environment"
+                    textoBoton="foto del dorso"
+                    onCapture={(foto) => {
+                      setDniDorso(foto)
                       setEnvioCompleto(false)
                     }}
-                    required
                   />
                   {dniDorso && <p className="mt-3 mb-0 fw-semibold text-success">Dorso listo</p>}
                 </div>
@@ -328,22 +311,17 @@ function UnificarPap() {
                   <h3 className="h4">4. Comprobante de CBU</h3>
                   <p className="fs-5 mb-1">Saca una foto del ticket, pantalla o comprobante del banco.</p>
                   <p className="text-secondary">Debe verse el nombre del titular y el CBU.</p>
-                  <label htmlFor="comprobante-cbu" className="btn btn-danger btn-lg w-100">
-                    {comprobanteCbu ? 'Volver a sacar la foto' : 'Sacar foto del comprobante'}
-                  </label>
-                  <input
-                    id="comprobante-cbu"
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="d-none"
-                    onChange={(event) => {
-                      setComprobanteCbu(event.target.files?.[0] ?? null)
+                  <CapturaCamara
+                    foto={comprobanteCbu}
+                    nombre="comprobante-cbu"
+                    facingMode="environment"
+                    textoBoton="foto del comprobante"
+                    onCapture={(foto) => {
+                      setComprobanteCbu(foto)
                       setEnvioCompleto(false)
                     }}
-                    required
                   />
-                  {comprobanteCbu && <p className="mt-3 mb-0 fw-semibold text-success">Comprobante listo: {comprobanteCbu.name}</p>}
+                  {comprobanteCbu && <p className="mt-3 mb-0 fw-semibold text-success">Comprobante listo</p>}
                 </div>
               </div>
             )}
@@ -352,7 +330,7 @@ function UnificarPap() {
 
             <button
               type="submit"
-              className="btn btn-danger btn-lg w-100"
+              className="btn btn-primary btn-lg w-100"
               disabled={enviando || envioCompleto || !fotoDni || !fotoGuino || !dniFrente || !dniDorso || !comprobanteCbu}
             >
               {enviando ? 'Enviando...' : envioCompleto ? 'Enviado correctamente' : 'Confirmar y enviar'}
@@ -364,7 +342,7 @@ function UnificarPap() {
 
         {troubleshooting && (
           <details className="mb-3">
-            <summary className="fw-semibold text-danger">Troubleshooting</summary>
+            <summary className="fw-semibold text-primary">Troubleshooting</summary>
             <pre className="bg-light border rounded p-3 mt-2 small text-break text-wrap">{troubleshooting}</pre>
           </details>
         )}
@@ -387,7 +365,7 @@ function UnificarPap() {
                 <div className="modal-body p-4">
                   <h2 className="h4 mb-3">Envío confirmado</h2>
                   <p className="fs-5 mb-4">Las firmas, el CBU y el DNI se han enviado correctamente.</p>
-                  <button type="button" className="btn btn-danger btn-lg w-100" onClick={() => setMostrarConfirmacion(false)}>
+                  <button type="button" className="btn btn-primary btn-lg w-100" onClick={() => setMostrarConfirmacion(false)}>
                     Aceptar
                   </button>
                 </div>
