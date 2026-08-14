@@ -23,7 +23,15 @@ Rediseño con backend y trámites vinculados.
 - Registro básico de auditoría y reintentos de correo.
 
 
-[0.1.1] - SIN PUBLICAR
+[0.1.2] - 2026-08-14
+----------------------
+
+- Restauración de la configuración de Vercel comprobada con FormSubmit.
+- Retiro de encabezados que impedían identificar correctamente el formulario.
+- Se mantienen la captura directa por cámara y sus validaciones locales.
+
+
+[0.1.1] - 2026-08-13
 ----------------------
 
 - Reemplazo de los selectores de imágenes por captura directa con cámara.
