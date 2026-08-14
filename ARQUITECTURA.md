@@ -1,4 +1,4 @@
-# Arquitectura de FirmaCoopya
+# Arquitectura de FirmaAsistodo
 
 ## Objetivo del rediseño
 
@@ -11,7 +11,7 @@ La solución continúa implementando **firma electrónica visual**, no firma dig
 Cada trámite tendrá un enlace como:
 
 ```text
-https://firmas.coopya.com.ar/tramite/{token}
+https://firmas.asistodo.com.ar/tramite/{token}
 ```
 
 `token` debe ser aleatorio, largo, no correlativo y difícil de adivinar. No debe incluir DNI, email ni el identificador interno de la base de datos. Se recomienda que expire y que deje de aceptar modificaciones después de completar el trámite.

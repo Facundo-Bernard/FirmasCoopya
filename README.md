@@ -1,4 +1,4 @@
-# FirmaCoopya
+# FirmaAsistodo
 
 Aplicación web para dibujar una firma electrónica, aplicarla sobre un PDF y enviar la papelería firmada a `info@asistodo.com.ar`.
 

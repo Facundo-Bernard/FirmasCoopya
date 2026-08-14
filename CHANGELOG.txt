@@ -1,4 +1,4 @@
-FirmaCoopya - Historial de versiones
+FirmaAsistodo - Historial de versiones
 =====================================
 
 El proyecto utiliza versionado semántico: MAYOR.MENOR.PARCHE.
