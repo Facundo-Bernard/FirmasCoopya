@@ -31,7 +31,7 @@ function Tutorial() {
         <h1 className="fw-bold text-primary mb-4">Tutorial</h1>
         <h2 className="fw-bold text-primary mb-4">1. Recuerda primero descargar en tu dispositivo el archivo que se te envió junto al link</h2>
 
-        <div className="alert alert-primary text-center fs-5 fw-semibold mt-3 mb-0" role="status" aria-live="polite">
+        <div className="alert alert-primary text-center fs-5 fw-semibold mt-1 mb-2" role="status" aria-live="polite">
           {indicacion}
         </div>
         <video
