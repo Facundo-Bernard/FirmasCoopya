@@ -43,6 +43,7 @@ function UnificarPap() {
   const [dniFrente, setDniFrente] = useState<File | null>(null)
   const [dniDorso, setDniDorso] = useState<File | null>(null)
   const [comprobanteCbu, setComprobanteCbu] = useState<File | null>(null)
+  const [procesandoPdf, setProcesandoPdf] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [envioCompleto, setEnvioCompleto] = useState(false)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
@@ -79,6 +80,10 @@ function UnificarPap() {
   }
 
   const unificar = async () => {
+    if (procesandoPdf) {
+      return
+    }
+
     if (!archivoPdf || !firmaPng) {
       setMensaje('Carga un PDF y asegurate de tener una firma guardada.')
       setTroubleshooting('')
@@ -86,6 +91,7 @@ function UnificarPap() {
     }
 
     try {
+      setProcesandoPdf(true)
       setTroubleshooting('')
       const resultado = await firmarPdf(await archivoPdf.arrayBuffer(), firmaPng)
       const bytes = resultado.bytes.slice()
@@ -101,6 +107,8 @@ function UnificarPap() {
     } catch (error) {
       setMensaje('No se pudo procesar el PDF.')
       setTroubleshooting(describirError(error))
+    } finally {
+      setProcesandoPdf(false)
     }
   }
 
@@ -183,15 +191,22 @@ function UnificarPap() {
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
-          <button type="button" className="btn btn-primary" onClick={unificar}>
-            Colocar firma
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={unificar}
+            disabled={procesandoPdf}
+            aria-busy={procesandoPdf}
+          >
+            {procesandoPdf && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+            {procesandoPdf ? 'Colocando firmas...' : 'Colocar firma'}
           </button>
 
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => setMostrarEnvio(true)}
-            disabled={!documentoBytes || mostrarEnvio}
+            disabled={procesandoPdf || !documentoBytes || mostrarEnvio}
           >
             Siguiente
           </button>
@@ -332,7 +347,9 @@ function UnificarPap() {
               type="submit"
               className="btn btn-primary btn-lg w-100"
               disabled={enviando || envioCompleto || !fotoDni || !fotoGuino || !dniFrente || !dniDorso || !comprobanteCbu}
+              aria-busy={enviando}
             >
+              {enviando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
               {enviando ? 'Enviando...' : envioCompleto ? 'Enviado correctamente' : 'Confirmar y enviar'}
             </button>
           </form>
