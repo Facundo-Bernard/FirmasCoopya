@@ -8,8 +8,13 @@ import type { RootState } from '../../REDUX/store'
 import CapturaCamara from './CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
-const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
+const FORM_SUBMIT_URL = `https://formsubmit.co/ajax/${DESTINO_EMAIL}`
 const MAXIMO_ENVIO_BYTES = 10_000_000
+
+type RespuestaFormSubmit = {
+  success?: boolean | string
+  message?: string
+}
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -27,6 +32,31 @@ const describirError = (error: unknown) => {
   } catch {
     return String(error)
   }
+}
+
+const validarRespuestaFormSubmit = async (respuesta: Response) => {
+  const texto = await respuesta.text()
+  let resultado: RespuestaFormSubmit = {}
+
+  try {
+    resultado = JSON.parse(texto) as RespuestaFormSubmit
+  } catch {
+    throw new Error(`FormSubmit devolvio una respuesta invalida (HTTP ${respuesta.status}).`)
+  }
+
+  const confirmado = resultado.success === true || resultado.success === 'true'
+
+  if (!respuesta.ok || !confirmado) {
+    throw new Error(resultado.message || `FormSubmit rechazo el envio (HTTP ${respuesta.status}).`)
+  }
+}
+
+const mensajeDeEnvio = (error: unknown) => {
+  if (error instanceof TypeError) {
+    return 'No se pudo conectar con el servicio de envio. Revisa tu conexion e intenta nuevamente.'
+  }
+
+  return error instanceof Error ? error.message : 'Ocurrio un error desconocido.'
 }
 
 function UnificarPap() {
@@ -130,6 +160,8 @@ function UnificarPap() {
 
     try {
       setEnviando(true)
+      setEnvioCompleto(false)
+      setMostrarConfirmacion(false)
       setMensaje('Enviando papeleria...')
       setTroubleshooting('')
 
@@ -155,20 +187,23 @@ function UnificarPap() {
       datos.append('_subject', asunto)
       datos.append('_template', 'table')
       datos.append('_captcha', 'false')
+      datos.append('_url', window.location.href)
       datos.append('attachment', pdfFirmado, `${asunto}.pdf`)
       datos.append('attachment_2', documentacion, `DOCUMENTACION_${dniLimpio}.pdf`)
 
-      await fetch(FORM_SUBMIT_URL, {
+      const respuesta = await fetch(FORM_SUBMIT_URL, {
         method: 'POST',
+        headers: { Accept: 'application/json' },
         body: datos,
-        mode: 'no-cors',
       })
 
+      await validarRespuestaFormSubmit(respuesta)
       setMensaje('')
       setEnvioCompleto(true)
       setMostrarConfirmacion(true)
     } catch (error) {
-      setMensaje('No se pudo enviar la papeleria.')
+      setEnvioCompleto(false)
+      setMensaje(`No se pudo enviar la papeleria. ${mensajeDeEnvio(error)}`)
       setTroubleshooting(describirError(error))
     } finally {
       setEnviando(false)
@@ -382,9 +417,9 @@ function UnificarPap() {
                 <div className="modal-body p-4">
                   <h2 className="h4 mb-3">Envío confirmado</h2>
                   <p className="fs-5 mb-4">Las firmas, el CBU y el DNI se han enviado correctamente.</p>
-                  <button type="button" className="btn btn-primary btn-lg w-100" onClick={() => setMostrarConfirmacion(false)}>
-                    Aceptar
-                  </button>
+                  <Link to="/" className="btn btn-primary btn-lg w-100">
+                    Volver al inicio
+                  </Link>
                 </div>
               </div>
             </div>
