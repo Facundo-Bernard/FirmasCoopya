@@ -2,6 +2,7 @@ import { PDFDocument } from 'pdf-lib'
 import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 
 export const PALABRA_CLAVE = 'firma_aqui'
+export const PALABRA_CLAVE_COMERCIALIZADOR = 'firma_comer_aqui'
 
 const ANCHO_FIRMA = 140
 const ALTO_FIRMA = 140
@@ -68,7 +69,11 @@ const cargarPdfJs = async () => {
   return pdfjsLib
 }
 
-export async function firmarPdf(pdf: ArrayBuffer, firmaPng: string): Promise<ResultadoFirma> {
+export async function firmarPdf(
+  pdf: ArrayBuffer,
+  firmaPng: string,
+  palabraClave = PALABRA_CLAVE,
+): Promise<ResultadoFirma> {
   const pdfjsLib = await cargarPdfJs()
   const bytesPdf = new Uint8Array(pdf)
   let visorPdf
@@ -97,7 +102,7 @@ export async function firmarPdf(pdf: ArrayBuffer, firmaPng: string): Promise<Res
     throw new Error(`No se pudo leer la imagen PNG de la firma: ${error instanceof Error ? error.message : String(error)}`)
   }
   const paginas = documento.getPages()
-  const palabra = new RegExp(`\\b${PALABRA_CLAVE}\\b`, 'i')
+  const palabra = new RegExp(`\\b${palabraClave}\\b`, 'i')
   let coincidencias = 0
 
   for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
