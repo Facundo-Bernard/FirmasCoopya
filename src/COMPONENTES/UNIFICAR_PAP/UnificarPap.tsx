@@ -8,13 +8,8 @@ import type { RootState } from '../../REDUX/store'
 import CapturaCamara from './CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
-const FORM_SUBMIT_URL = `https://formsubmit.co/ajax/${DESTINO_EMAIL}`
+const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
 const MAXIMO_ENVIO_BYTES = 10_000_000
-
-type RespuestaFormSubmit = {
-  success?: boolean | string
-  message?: string
-}
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -34,20 +29,16 @@ const describirError = (error: unknown) => {
   }
 }
 
-const validarRespuestaFormSubmit = async (respuesta: Response) => {
-  const texto = await respuesta.text()
-  let resultado: RespuestaFormSubmit = {}
-
-  try {
-    resultado = JSON.parse(texto) as RespuestaFormSubmit
-  } catch {
-    throw new Error(`FormSubmit devolvio una respuesta invalida (HTTP ${respuesta.status}).`)
+const validarRespuestaFormSubmit = (respuesta: Response, urlConfirmacion: string) => {
+  if (!respuesta.ok) {
+    throw new Error(`FormSubmit rechazo el envio (HTTP ${respuesta.status}).`)
   }
 
-  const confirmado = resultado.success === true || resultado.success === 'true'
+  const destino = new URL(respuesta.url)
+  const confirmacion = new URL(urlConfirmacion)
 
-  if (!respuesta.ok || !confirmado) {
-    throw new Error(resultado.message || `FormSubmit rechazo el envio (HTTP ${respuesta.status}).`)
+  if (destino.origin !== confirmacion.origin || destino.pathname !== confirmacion.pathname) {
+    throw new Error('FormSubmit no confirmo el envio de los archivos.')
   }
 }
 
@@ -157,6 +148,7 @@ function UnificarPap() {
     }
 
     const asunto = `PAPELERIA ${dniLimpio}`
+    const urlConfirmacion = new URL('/envio-confirmado', window.location.origin).href
 
     try {
       setEnviando(true)
@@ -188,16 +180,17 @@ function UnificarPap() {
       datos.append('_template', 'table')
       datos.append('_captcha', 'false')
       datos.append('_url', window.location.href)
+      datos.append('_next', urlConfirmacion)
       datos.append('attachment', pdfFirmado, `${asunto}.pdf`)
       datos.append('attachment_2', documentacion, `DOCUMENTACION_${dniLimpio}.pdf`)
 
       const respuesta = await fetch(FORM_SUBMIT_URL, {
         method: 'POST',
-        headers: { Accept: 'application/json' },
         body: datos,
+        redirect: 'follow',
       })
 
-      await validarRespuestaFormSubmit(respuesta)
+      validarRespuestaFormSubmit(respuesta, urlConfirmacion)
       setMensaje('')
       setEnvioCompleto(true)
       setMostrarConfirmacion(true)
