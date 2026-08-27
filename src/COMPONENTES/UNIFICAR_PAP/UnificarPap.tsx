@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
-import SelectorPdf from '../SELECTOR_PDF/SelectorPdf'
 import CapturaCamara from './CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
@@ -79,7 +78,13 @@ function UnificarPap() {
     }
   }, [documentoUrl])
 
-  const cargarPdf = (archivo: File) => {
+  const cargarPdf = (event: ChangeEvent<HTMLInputElement>) => {
+    const archivo = event.target.files?.[0]
+
+    if (!archivo) {
+      return
+    }
+
     setArchivoPdf(archivo)
     setDocumentoBytes(null)
     setDocumentoUrl(URL.createObjectURL(archivo))
@@ -210,18 +215,7 @@ function UnificarPap() {
         <div className="mb-3">
           <p className="fs-5">Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
           <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
-          <SelectorPdf
-            id="pdf"
-            archivo={archivoPdf}
-            onSeleccionar={cargarPdf}
-            onError={(error) => {
-              setArchivoPdf(null)
-              setDocumentoBytes(null)
-              setDocumentoUrl(null)
-              setMensaje(error)
-              setTroubleshooting('')
-            }}
-          />
+          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} />
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
