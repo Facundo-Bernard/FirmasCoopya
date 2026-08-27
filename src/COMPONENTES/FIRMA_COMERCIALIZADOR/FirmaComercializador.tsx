@@ -9,6 +9,7 @@ import {
   type OpcionMarcadorPlanPdf,
 } from '../../SERVICIOS/firmarPdf'
 import '../FIRMA_DIGITAL/FirmaDigital.css'
+import SelectorPdf from '../SELECTOR_PDF/SelectorPdf'
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -235,13 +236,7 @@ function FirmaComercializador() {
     setMensaje('')
   }
 
-  const cargarPdf = (event: ChangeEvent<HTMLInputElement>) => {
-    const archivo = event.target.files?.[0]
-
-    if (!archivo) {
-      return
-    }
-
+  const cargarPdf = (archivo: File) => {
     if (!archivo.name.toLowerCase().endsWith('.pdf')) {
       setArchivoPdf(null)
       setArchivoUrl(null)
@@ -439,13 +434,20 @@ function FirmaComercializador() {
 
         <section className="border rounded p-3 p-md-4 mb-4">
           <h2 className="h4 mb-3">4. Selecciona la papelería</h2>
-          <input
-            type="file"
-            accept="application/pdf"
-            className="form-control form-control-lg mb-3"
-            onChange={cargarPdf}
-            required
-          />
+          <div className="mb-3">
+            <SelectorPdf
+              id="pdf-comercializador"
+              archivo={archivoPdf}
+              onSeleccionar={cargarPdf}
+              onError={(error) => {
+                setArchivoPdf(null)
+                setArchivoUrl(null)
+                setDocumentoUrl(null)
+                setMensaje(error)
+              }}
+              required
+            />
+          </div>
 
           <button
             type="submit"
