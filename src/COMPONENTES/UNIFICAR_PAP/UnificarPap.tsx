@@ -29,16 +29,9 @@ const describirError = (error: unknown) => {
   }
 }
 
-const validarRespuestaFormSubmit = (respuesta: Response, urlConfirmacion: string) => {
+const validarRespuestaFormSubmit = (respuesta: Response) => {
   if (!respuesta.ok) {
     throw new Error(`FormSubmit rechazo el envio (HTTP ${respuesta.status}).`)
-  }
-
-  const destino = new URL(respuesta.url)
-  const confirmacion = new URL(urlConfirmacion)
-
-  if (destino.origin !== confirmacion.origin || destino.pathname !== confirmacion.pathname) {
-    throw new Error('FormSubmit no confirmo el envio de los archivos.')
   }
 }
 
@@ -190,7 +183,7 @@ function UnificarPap() {
         redirect: 'follow',
       })
 
-      validarRespuestaFormSubmit(respuesta, urlConfirmacion)
+      validarRespuestaFormSubmit(respuesta)
       setMensaje('')
       setEnvioCompleto(true)
       setMostrarConfirmacion(true)
