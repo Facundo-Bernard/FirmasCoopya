@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
-import { firmarPdf, PALABRA_CLAVE_COMERCIALIZADOR, type CampoTextoPdf } from '../../SERVICIOS/firmarPdf'
+import {
+  firmarPdf,
+  PALABRA_CLAVE_COMERCIALIZADOR,
+  type CampoTextoPdf,
+  type OpcionMarcadorPlanPdf,
+} from '../../SERVICIOS/firmarPdf'
 import '../FIRMA_DIGITAL/FirmaDigital.css'
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
@@ -11,17 +16,31 @@ const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   return copia
 }
 
-const PLANES = [
-  { nombre: 'Plan 50', marcador: 'fplan_1' },
-  { nombre: 'Plan 70', marcador: 'fplan_2' },
-  { nombre: 'Plan 100', marcador: 'fplan_3' },
-  { nombre: 'Plan 120', marcador: 'fplan_4' },
-  { nombre: 'Plan 150', marcador: 'fplan_5' },
-] as const
+const DESPLAZAMIENTO_TILDE_PLAN = 55
 
-type MarcadorPlan = (typeof PLANES)[number]['marcador']
+const PLANES = [
+  { id: '50', nombre: 'Plan 50', marcadores: [{ marcador: 'fplan_1', desplazamientoX: DESPLAZAMIENTO_TILDE_PLAN }] },
+  { id: '70', nombre: 'Plan 70', marcadores: [{ marcador: 'fplan_2', desplazamientoX: DESPLAZAMIENTO_TILDE_PLAN }] },
+  { id: '100', nombre: 'Plan 100', marcadores: [{ marcador: 'fplan_3', desplazamientoX: DESPLAZAMIENTO_TILDE_PLAN }] },
+  { id: '120', nombre: 'Plan 120', marcadores: [{ marcador: 'fplan_4', aparicion: 1, desplazamientoX: DESPLAZAMIENTO_TILDE_PLAN }] },
+  {
+    id: '150',
+    nombre: 'Plan 150',
+    marcadores: [
+      { marcador: 'fplan_5', desplazamientoX: DESPLAZAMIENTO_TILDE_PLAN },
+      { marcador: 'fplan_4', aparicion: 2, desplazamientoX: DESPLAZAMIENTO_TILDE_PLAN },
+    ],
+  },
+] as const satisfies readonly {
+  id: string
+  nombre: string
+  marcadores: readonly OpcionMarcadorPlanPdf[]
+}[]
+
+type PlanId = (typeof PLANES)[number]['id']
 
 type DatoComercializador =
+  | 'fecha'
   | 'nombreApellido'
   | 'dni'
   | 'cuit'
@@ -40,25 +59,120 @@ type DefinicionDatoComercializador = {
   etiqueta: string
   marcador: string
   marcadoresAlternativos?: readonly string[]
-  tipo?: 'text' | 'email' | 'tel'
+  tipo?: 'text' | 'email' | 'tel' | 'date'
   inputMode?: 'text' | 'numeric' | 'email' | 'tel'
   autoComplete?: string
+  anclasAlternativas?: CampoTextoPdf['anclasAlternativas']
+  anchoMaximo?: number
 }
 
 const CAMPOS_COMERCIALIZADOR: readonly DefinicionDatoComercializador[] = [
-  { clave: 'nombreApellido', etiqueta: 'Nombre y apellido', marcador: 'n_a_aqui', autoComplete: 'name' },
-  { clave: 'dni', etiqueta: 'DNI', marcador: 'dni_aqui', inputMode: 'numeric' },
-  { clave: 'cuit', etiqueta: 'CUIT', marcador: 'cuit_aqui', inputMode: 'numeric' },
-  { clave: 'numeroAsociado', etiqueta: 'N.o de asociado', marcador: 'n_de_asociado_aqui', inputMode: 'numeric' },
-  { clave: 'correo', etiqueta: 'Correo', marcador: 'correo_aqui', tipo: 'email', inputMode: 'email', autoComplete: 'email' },
-  { clave: 'telefono', etiqueta: 'Telefono', marcador: 'telefono_aqui', tipo: 'tel', inputMode: 'tel', autoComplete: 'tel' },
-  { clave: 'titularCuenta', etiqueta: 'Titular de la cuenta', marcador: 'titular_aqui' },
-  { clave: 'entidad', etiqueta: 'Entidad financiera / proveedor de servicios de pago', marcador: 'entidad_aqui' },
-  { clave: 'alias', etiqueta: 'Alias', marcador: 'alias_aquí', marcadoresAlternativos: ['alias_aqui'] },
-  { clave: 'cbuCvu', etiqueta: 'CBU / CVU', marcador: 'cbu_aqui', inputMode: 'numeric' },
+  {
+    clave: 'fecha',
+    etiqueta: 'Fecha',
+    marcador: 'fecha_aqui',
+    tipo: 'date',
+    anchoMaximo: 155,
+    anclasAlternativas: [{ texto: '.......... de......................de...........', anchoMaximo: 155 }],
+  },
+  {
+    clave: 'nombreApellido',
+    etiqueta: 'Nombre y apellido',
+    marcador: 'n_a_aqui',
+    autoComplete: 'name',
+    anchoMaximo: 306,
+    anclasAlternativas: [{ texto: 'Nombre y Apellido:', despues: true, desplazamientoX: 6, anchoMaximo: 306 }],
+  },
+  {
+    clave: 'dni',
+    etiqueta: 'DNI',
+    marcador: 'dni_aqui',
+    inputMode: 'numeric',
+    anchoMaximo: 174,
+    anclasAlternativas: [{ texto: 'D.N.I:', despues: true, desplazamientoX: 6, anchoMaximo: 174 }],
+  },
+  {
+    clave: 'cuit',
+    etiqueta: 'CUIT',
+    marcador: 'cuit_aqui',
+    inputMode: 'numeric',
+    anchoMaximo: 128,
+    anclasAlternativas: [{ texto: 'CUIT/CUIL:', despues: true, desplazamientoX: 6, anchoMaximo: 128 }],
+  },
+  {
+    clave: 'numeroAsociado',
+    etiqueta: 'N.o de asociado',
+    marcador: 'n_de_asociado_aqui',
+    inputMode: 'numeric',
+    anchoMaximo: 122,
+    anclasAlternativas: [{ texto: 'Nº de asociado:', despues: true, desplazamientoX: 6, anchoMaximo: 122 }],
+  },
+  {
+    clave: 'correo',
+    etiqueta: 'Correo',
+    marcador: 'correo_aqui',
+    tipo: 'email',
+    inputMode: 'email',
+    autoComplete: 'email',
+    anchoMaximo: 309,
+    anclasAlternativas: [{ texto: 'Correo electrónico:', despues: true, desplazamientoX: 6, anchoMaximo: 309 }],
+  },
+  {
+    clave: 'telefono',
+    etiqueta: 'Telefono',
+    marcador: 'telefono_aqui',
+    tipo: 'tel',
+    inputMode: 'tel',
+    autoComplete: 'tel',
+    anchoMaximo: 148,
+    anclasAlternativas: [{ texto: 'Teléfono:', despues: true, desplazamientoX: 6, anchoMaximo: 148 }],
+  },
+  {
+    clave: 'titularCuenta',
+    etiqueta: 'Titular de la cuenta',
+    marcador: 'titular_aqui',
+    anchoMaximo: 97,
+    anclasAlternativas: [{ texto: 'Titular de la cuenta:', despues: true, desplazamientoX: 6, anchoMaximo: 97 }],
+  },
+  {
+    clave: 'entidad',
+    etiqueta: 'Entidad financiera / proveedor de servicios de pago',
+    marcador: 'entidad_aqui',
+    anchoMaximo: 405,
+    anclasAlternativas: [{
+      texto: 'Entidad financiera / proveedor de servicios de pago:',
+      desplazamientoX: 6,
+      desplazamientoY: -15,
+      anchoMaximo: 405,
+    }],
+  },
+  {
+    clave: 'alias',
+    etiqueta: 'Alias',
+    marcador: 'alias_aqui',
+    marcadoresAlternativos: ['alias_aquí'],
+    anchoMaximo: 166,
+    anclasAlternativas: [{ texto: 'Alias:', despues: true, desplazamientoX: 6, anchoMaximo: 166 }],
+  },
+  {
+    clave: 'cbuCvu',
+    etiqueta: 'CBU / CVU',
+    marcador: 'cbu_aqui',
+    inputMode: 'numeric',
+    anchoMaximo: 148,
+    anclasAlternativas: [{ texto: 'CBU/CVU:', despues: true, desplazamientoX: 6, anchoMaximo: 148 }],
+  },
 ]
 
+const fechaActual = () => {
+  const fecha = new Date()
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dia = String(fecha.getDate()).padStart(2, '0')
+  return `${fecha.getFullYear()}-${mes}-${dia}`
+}
+
 const DATOS_INICIALES: DatosComercializador = {
+  fecha: fechaActual(),
   nombreApellido: '',
   dni: '',
   cuit: '',
@@ -71,12 +185,19 @@ const DATOS_INICIALES: DatosComercializador = {
   cbuCvu: '',
 }
 
+const formatearFecha = (fecha: string) => new Intl.DateTimeFormat('es-AR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+}).format(new Date(`${fecha}T12:00:00`))
+
 function FirmaComercializador() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
   const [firmaPng, setFirmaPng] = useState<string | null>(null)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
+  const [archivoUrl, setArchivoUrl] = useState<string | null>(null)
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
-  const [marcadorPlan, setMarcadorPlan] = useState<MarcadorPlan | null>(null)
+  const [planId, setPlanId] = useState<PlanId | null>(null)
   const [datosComercializador, setDatosComercializador] = useState<DatosComercializador>(DATOS_INICIALES)
   const [mensaje, setMensaje] = useState('')
   const [procesando, setProcesando] = useState(false)
@@ -88,6 +209,14 @@ function FirmaComercializador() {
       }
     }
   }, [documentoUrl])
+
+  useEffect(() => {
+    return () => {
+      if (archivoUrl) {
+        URL.revokeObjectURL(archivoUrl)
+      }
+    }
+  }, [archivoUrl])
 
   const guardarFirma = () => {
     const signaturePad = signatureRef.current
@@ -115,17 +244,19 @@ function FirmaComercializador() {
 
     if (!archivo.name.toLowerCase().endsWith('.pdf')) {
       setArchivoPdf(null)
+      setArchivoUrl(null)
       setMensaje('Selecciona un archivo PDF valido.')
       return
     }
 
     setArchivoPdf(archivo)
+    setArchivoUrl(URL.createObjectURL(archivo))
     setDocumentoUrl(null)
     setMensaje('')
   }
 
   const seleccionarPlan = (event: ChangeEvent<HTMLInputElement>) => {
-    setMarcadorPlan(event.target.value as MarcadorPlan)
+    setPlanId(event.target.value as PlanId)
     setDocumentoUrl(null)
     setMensaje('')
   }
@@ -139,12 +270,16 @@ function FirmaComercializador() {
     setMensaje('')
   }
 
-  const colocarFirma = async () => {
+  const colocarFirma = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
     if (procesando) {
       return
     }
 
-    if (!marcadorPlan) {
+    const planSeleccionado = PLANES.find((plan) => plan.id === planId)
+
+    if (!planSeleccionado) {
       setMensaje('Selecciona un plan antes de firmar y descargar la papeleria.')
       return
     }
@@ -170,14 +305,18 @@ function FirmaComercializador() {
       const camposTexto: CampoTextoPdf[] = CAMPOS_COMERCIALIZADOR.map((campo) => ({
         marcador: campo.marcador,
         marcadoresAlternativos: campo.marcadoresAlternativos,
-        valor: datosComercializador[campo.clave].trim(),
+        anclasAlternativas: campo.anclasAlternativas,
+        anchoMaximo: campo.anchoMaximo,
+        valor: campo.clave === 'fecha'
+          ? formatearFecha(datosComercializador.fecha)
+          : datosComercializador[campo.clave].trim(),
       }))
 
       const resultado = await firmarPdf(
         await archivoPdf.arrayBuffer(),
         firmaPng,
         PALABRA_CLAVE_COMERCIALIZADOR,
-        marcadorPlan,
+        planSeleccionado.marcadores,
         camposTexto,
       )
 
@@ -187,7 +326,7 @@ function FirmaComercializador() {
       }
 
       if (!resultado.coincidenciasPlan) {
-        setMensaje(`No se encontro la marca ${marcadorPlan} del plan seleccionado.`)
+        setMensaje(`No se encontro la marca correspondiente a ${planSeleccionado.nombre}.`)
         return
       }
 
@@ -202,8 +341,7 @@ function FirmaComercializador() {
 
       const blob = new Blob([copiarArrayBuffer(resultado.bytes)], { type: 'application/pdf' })
       setDocumentoUrl(URL.createObjectURL(blob))
-      const planSeleccionado = PLANES.find((plan) => plan.marcador === marcadorPlan)
-      setMensaje(`Firma, ${planSeleccionado?.nombre ?? 'plan'} y datos colocados correctamente.`)
+      setMensaje(`Firma, ${planSeleccionado.nombre} y todos los datos colocados correctamente.`)
     } catch (error) {
       setMensaje(`No se pudo firmar el PDF: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
@@ -217,6 +355,7 @@ function FirmaComercializador() {
   const datosCompletos = CAMPOS_COMERCIALIZADOR.every(
     (campo) => Boolean(datosComercializador[campo.clave].trim()),
   )
+  const vistaPreviaUrl = documentoUrl ?? archivoUrl
 
   return (
     <main className="min-vh-100 bg-white">
@@ -228,6 +367,7 @@ function FirmaComercializador() {
         <h1 className="fw-bold text-primary mb-2">Firma del comercializador</h1>
         <p className="fs-5 mb-4">Firma la papelería y descarga el PDF. No se enviará ningún correo.</p>
 
+        <form onSubmit={colocarFirma}>
         <section className="border rounded p-3 p-md-4 mb-4">
           <h2 className="h4 mb-2">1. Dibuja tu firma</h2>
           <div className="firma-pad border rounded-4 bg-light overflow-hidden mb-3 mx-auto">
@@ -254,16 +394,17 @@ function FirmaComercializador() {
           <div className="d-grid gap-2" role="radiogroup" aria-label="Plan seleccionado">
             {PLANES.map((plan) => (
               <label
-                key={plan.marcador}
-                className={`border rounded p-3 d-flex align-items-center gap-3 ${marcadorPlan === plan.marcador ? 'border-primary bg-primary-subtle' : ''}`}
+                key={plan.id}
+                className={`border rounded p-3 d-flex align-items-center gap-3 ${planId === plan.id ? 'border-primary bg-primary-subtle' : ''}`}
               >
                 <input
                   type="radio"
                   name="plan"
-                  value={plan.marcador}
-                  checked={marcadorPlan === plan.marcador}
+                  value={plan.id}
+                  checked={planId === plan.id}
                   onChange={seleccionarPlan}
                   className="form-check-input mt-0"
+                  required
                 />
                 <span className="fw-semibold">{plan.nombre}</span>
               </label>
@@ -303,30 +444,34 @@ function FirmaComercializador() {
             accept="application/pdf"
             className="form-control form-control-lg mb-3"
             onChange={cargarPdf}
+            required
           />
 
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary btn-lg"
-            onClick={colocarFirma}
-            disabled={!firmaPng || !archivoPdf || !marcadorPlan || !datosCompletos || procesando}
+            disabled={!firmaPng || !archivoPdf || !planId || !datosCompletos || procesando}
             aria-busy={procesando}
           >
             {procesando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
             {procesando ? 'Colocando firma...' : 'Firmar PDF'}
           </button>
         </section>
+        </form>
 
         {mensaje && <p className="fs-5 mb-3">{mensaje}</p>}
 
-        {documentoUrl && (
+        {vistaPreviaUrl && (
           <section className="mb-3">
-            <a href={documentoUrl} download={nombreDescarga} className="btn btn-primary btn-lg mb-3">
-              Descargar PDF firmado
-            </a>
+            {documentoUrl && (
+              <a href={documentoUrl} download={nombreDescarga} className="btn btn-primary btn-lg mb-3">
+                Descargar PDF firmado
+              </a>
+            )}
+            <h2 className="h4 mb-3">{documentoUrl ? 'Documento firmado' : 'Vista previa del documento'}</h2>
             <iframe
-              title="Previsualización del PDF firmado"
-              src={documentoUrl}
+              title={documentoUrl ? 'Previsualización del PDF firmado' : 'Previsualización del PDF cargado'}
+              src={vistaPreviaUrl}
               className="w-100 border rounded"
               style={{ height: '70vh' }}
             />

@@ -4,14 +4,33 @@ import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 export const PALABRA_CLAVE = 'firma_aqui'
 export const PALABRA_CLAVE_COMERCIALIZADOR = 'firma_comer_aqui'
 
+export type AnclaTextoPdf = {
+  texto: string
+  despues?: boolean
+  desplazamientoX?: number
+  desplazamientoY?: number
+  anchoMaximo?: number
+  aparicion?: number
+}
+
 export type CampoTextoPdf = {
   marcador: string
   valor: string
   marcadoresAlternativos?: readonly string[]
+  anclasAlternativas?: readonly AnclaTextoPdf[]
+  anchoMaximo?: number
+}
+
+export type OpcionMarcadorPlanPdf = {
+  marcador: string
+  aparicion?: number
+  desplazamientoX?: number
+  desplazamientoY?: number
 }
 
 const ANCHO_FIRMA = 140
 const ALTO_FIRMA = 140
+const ALTO_FIRMA_COMERCIALIZADOR = 60
 const GROSOR_TILDE_PLAN = 2.5
 
 type ResultadoFirma = {
@@ -19,6 +38,23 @@ type ResultadoFirma = {
   coincidencias: number
   coincidenciasPlan: number
   coincidenciasDatos: Record<string, number>
+}
+
+type ItemTextoPdf = {
+  str: string
+  transform: number[]
+  width: number
+  height: number
+}
+
+type PaginaTextoPdf = {
+  pagina: PDFPage
+  items: ItemTextoPdf[]
+}
+
+type CoincidenciaTextoPdf = {
+  pagina: PDFPage
+  item: ItemTextoPdf
 }
 
 type PromiseConCompatibilidad = typeof Promise & {
@@ -87,33 +123,54 @@ const obtenerMarcadores = (campo: CampoTextoPdf) => [
   ...(campo.marcadoresAlternativos ?? []),
 ]
 
+const buscarCoincidencias = (
+  paginas: readonly PaginaTextoPdf[],
+  texto: string,
+): CoincidenciaTextoPdf[] => {
+  const expresion = crearExpresionMarcador(texto)
+
+  return paginas.flatMap(({ pagina, items }) => (
+    items
+      .filter((item) => expresion.test(item.str))
+      .map((item) => ({ pagina, item }))
+  ))
+}
+
+const elegirAparicion = (
+  coincidencias: readonly CoincidenciaTextoPdf[],
+  aparicion?: number,
+) => aparicion ? coincidencias.slice(aparicion - 1, aparicion) : coincidencias
+
 const dibujarTildePlan = (pagina: PDFPage, posicionX: number, posicionY: number) => {
   const x = Math.max(0, posicionX)
-  const y = Math.max(0, posicionY - 8)
+  const y = Math.max(0, posicionY + 1)
 
   pagina.drawLine({
-    start: { x, y: y + 5 },
-    end: { x: x + 5, y },
+    start: { x, y: y + 3 },
+    end: { x: x + 3, y },
     thickness: GROSOR_TILDE_PLAN,
   })
   pagina.drawLine({
-    start: { x: x + 5, y },
-    end: { x: x + 15, y: y + 13 },
+    start: { x: x + 3, y },
+    end: { x: x + 9, y: y + 8 },
     thickness: GROSOR_TILDE_PLAN,
   })
 }
 
-const marcarCampoPlan = (documento: PDFDocument, marcadorPlan?: string) => {
-  if (!marcadorPlan) {
-    return 0
+const marcarCampoPlan = (
+  documento: PDFDocument,
+  opcionesPlan: readonly OpcionMarcadorPlanPdf[],
+) => {
+  for (const opcion of opcionesPlan) {
+    try {
+      documento.getForm().getCheckBox(opcion.marcador).check()
+      return 1
+    } catch {
+      // The plan marker can be visible text instead of an interactive checkbox.
+    }
   }
 
-  try {
-    documento.getForm().getCheckBox(marcadorPlan).check()
-    return 1
-  } catch {
-    return 0
-  }
+  return 0
 }
 
 const completarCamposFormulario = (
@@ -160,10 +217,17 @@ const dibujarDato = (
   posicionY: number,
   anchoMarcador: number,
   altoMarcador: number,
+  anchoMaximo?: number,
 ) => {
   const alto = Math.max(altoMarcador, 10)
-  const tamano = Math.min(Math.max(alto * 0.8, 8), 12)
-  const ancho = Math.max(anchoMarcador, fuente.widthOfTextAtSize(valor, tamano))
+  let tamano = Math.min(Math.max(alto * 0.8, 8), 12)
+
+  while (anchoMaximo && fuente.widthOfTextAtSize(valor, tamano) > anchoMaximo && tamano > 6) {
+    tamano -= 0.5
+  }
+
+  const anchoTexto = fuente.widthOfTextAtSize(valor, tamano)
+  const ancho = anchoMaximo ?? Math.max(anchoMarcador, anchoTexto)
   const x = Math.max(0, posicionX)
   const y = Math.max(0, posicionY)
 
@@ -177,11 +241,111 @@ const dibujarDato = (
   pagina.drawText(valor, { x, y, size: tamano, font: fuente })
 }
 
+const dibujarCamposTexto = (
+  paginas: readonly PaginaTextoPdf[],
+  camposTexto: readonly CampoTextoPdf[],
+  fuente: PDFFont,
+  coincidenciasDatos: Record<string, number>,
+  camposFormulario: ReadonlySet<string>,
+) => {
+  for (const campo of camposTexto) {
+    if (camposFormulario.has(campo.marcador)) {
+      continue
+    }
+
+    let coincidencias: CoincidenciaTextoPdf[] = []
+
+    for (const marcador of obtenerMarcadores(campo)) {
+      coincidencias = buscarCoincidencias(paginas, marcador)
+
+      if (coincidencias.length) {
+        break
+      }
+    }
+
+    if (coincidencias.length) {
+      for (const { pagina, item } of coincidencias) {
+        const [, , , , posicionX, posicionY] = item.transform
+        dibujarDato(
+          pagina,
+          fuente,
+          campo.valor,
+          posicionX,
+          posicionY,
+          item.width,
+          item.height,
+          campo.anchoMaximo,
+        )
+      }
+
+      coincidenciasDatos[campo.marcador] += coincidencias.length
+      continue
+    }
+
+    for (const ancla of campo.anclasAlternativas ?? []) {
+      const coincidenciasAncla = elegirAparicion(
+        buscarCoincidencias(paginas, ancla.texto),
+        ancla.aparicion,
+      )
+
+      if (!coincidenciasAncla.length) {
+        continue
+      }
+
+      for (const { pagina, item } of coincidenciasAncla) {
+        const [, , , , posicionX, posicionY] = item.transform
+        const x = posicionX + (ancla.despues ? item.width : 0) + (ancla.desplazamientoX ?? 0)
+        const y = posicionY + (ancla.desplazamientoY ?? 0)
+
+        dibujarDato(
+          pagina,
+          fuente,
+          campo.valor,
+          x,
+          y,
+          item.width,
+          item.height,
+          ancla.anchoMaximo,
+        )
+      }
+
+      coincidenciasDatos[campo.marcador] += coincidenciasAncla.length
+      break
+    }
+  }
+}
+
+const dibujarPlanEnTexto = (
+  paginas: readonly PaginaTextoPdf[],
+  opcionesPlan: readonly OpcionMarcadorPlanPdf[],
+) => {
+  for (const opcion of opcionesPlan) {
+    const [coincidencia] = elegirAparicion(
+      buscarCoincidencias(paginas, opcion.marcador),
+      opcion.aparicion ?? 1,
+    )
+
+    if (!coincidencia) {
+      continue
+    }
+
+    const [, , , , posicionX, posicionY] = coincidencia.item.transform
+    dibujarTildePlan(
+      coincidencia.pagina,
+      posicionX + (opcion.desplazamientoX ?? 0),
+      posicionY + (opcion.desplazamientoY ?? 0),
+    )
+    return 1
+  }
+
+  return 0
+}
+
 export async function firmarPdf(
   pdf: ArrayBuffer,
   firmaPng: string,
   palabraClave = PALABRA_CLAVE,
-  marcadorPlan?: string,
+  opcionesPlan: readonly OpcionMarcadorPlanPdf[] = [],
   camposTexto: readonly CampoTextoPdf[] = [],
 ): Promise<ResultadoFirma> {
   const pdfjsLib = await cargarPdfJs()
@@ -212,71 +376,59 @@ export async function firmarPdf(
     throw new Error(`No se pudo leer la imagen PNG de la firma: ${error instanceof Error ? error.message : String(error)}`)
   }
 
+  const paginasPdf = documento.getPages()
+  const paginasTexto: PaginaTextoPdf[] = []
+
+  for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
+    const pagina = await visorPdf.getPage(indice + 1)
+    const contenido = await pagina.getTextContent()
+    const items = contenido.items.flatMap<ItemTextoPdf>((item) => (
+      'str' in item
+        ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }]
+        : []
+    ))
+
+    paginasTexto.push({ pagina: paginasPdf[indice], items })
+  }
+
+  const coincidenciasFirma = buscarCoincidencias(paginasTexto, palabraClave)
+  const esFirmaComercializador = palabraClave.toLowerCase() === PALABRA_CLAVE_COMERCIALIZADOR
+  const altoFirma = esFirmaComercializador ? ALTO_FIRMA_COMERCIALIZADOR : ALTO_FIRMA
+  const desplazamientoFirmaY = esFirmaComercializador ? 30 : ALTO_FIRMA - 80
+
+  for (const { pagina, item } of coincidenciasFirma) {
+    const [, , , , posicionX, posicionY] = item.transform
+    pagina.drawImage(firma, {
+      x: Math.max(0, posicionX - 4),
+      y: Math.max(0, posicionY - desplazamientoFirmaY),
+      width: ANCHO_FIRMA,
+      height: altoFirma,
+    })
+  }
+
+  const campoPlanMarcado = marcarCampoPlan(documento, opcionesPlan) > 0
+  const coincidenciasPlan = campoPlanMarcado
+    ? 1
+    : dibujarPlanEnTexto(paginasTexto, opcionesPlan)
   const fuenteCampos = camposTexto.length ? await documento.embedFont(StandardFonts.Helvetica) : null
   const { coincidenciasDatos, camposFormulario } = fuenteCampos
     ? completarCamposFormulario(documento, camposTexto, fuenteCampos)
     : { coincidenciasDatos: {}, camposFormulario: new Set<string>() }
-  const paginas = documento.getPages()
-  const palabra = crearExpresionMarcador(palabraClave)
-  const palabraPlan = marcadorPlan
-    ? crearExpresionMarcador(marcadorPlan)
-    : null
-  const camposConMarcadores = camposTexto.map((campo) => ({
-    campo,
-    expresiones: obtenerMarcadores(campo).map(crearExpresionMarcador),
-  }))
-  let coincidencias = 0
-  const campoPlanMarcado = marcarCampoPlan(documento, marcadorPlan) > 0
-  let coincidenciasPlan = campoPlanMarcado ? 1 : 0
 
-  for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
-    const paginaPdf = paginas[indice]
-    const pagina = await visorPdf.getPage(indice + 1)
-    const contenido = await pagina.getTextContent()
-
-    for (const item of contenido.items) {
-      if (!('str' in item)) {
-        continue
-      }
-
-      const [, , , , posicionX, posicionY] = item.transform
-
-      if (palabra.test(item.str)) {
-        paginaPdf.drawImage(firma, {
-          x: Math.max(0, posicionX - 4),
-          y: Math.max(0, posicionY - ALTO_FIRMA + 80),
-          width: ANCHO_FIRMA,
-          height: ALTO_FIRMA,
-        })
-        coincidencias += 1
-      }
-
-      if (!campoPlanMarcado && palabraPlan?.test(item.str)) {
-        dibujarTildePlan(paginaPdf, posicionX, posicionY)
-        coincidenciasPlan += 1
-      }
-
-      if (fuenteCampos) {
-        const campoMarcado = camposConMarcadores.find(({ campo, expresiones }) => (
-          !camposFormulario.has(campo.marcador)
-          && expresiones.some((expresion) => expresion.test(item.str))
-        ))
-
-        if (campoMarcado) {
-          dibujarDato(
-            paginaPdf,
-            fuenteCampos,
-            campoMarcado.campo.valor,
-            posicionX,
-            posicionY,
-            item.width,
-            item.height,
-          )
-          coincidenciasDatos[campoMarcado.campo.marcador] += 1
-        }
-      }
-    }
+  if (fuenteCampos) {
+    dibujarCamposTexto(
+      paginasTexto,
+      camposTexto,
+      fuenteCampos,
+      coincidenciasDatos,
+      camposFormulario,
+    )
   }
 
-  return { bytes: await documento.save(), coincidencias, coincidenciasPlan, coincidenciasDatos }
+  return {
+    bytes: await documento.save(),
+    coincidencias: coincidenciasFirma.length,
+    coincidenciasPlan,
+    coincidenciasDatos,
+  }
 }
