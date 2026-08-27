@@ -1,19 +1,5 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import type { ChangeEvent } from 'react'
-
-type ManejadorPdf = {
-  getFile: () => Promise<File>
-}
-
-type VentanaConSelectorPdf = Window & {
-  showOpenFilePicker?: (opciones: {
-    id: string
-    startIn: 'downloads'
-    multiple: boolean
-    excludeAcceptAllOption: boolean
-    types: { description: string, accept: Record<string, string[]> }[]
-  }) => Promise<ManejadorPdf[]>
-}
 
 type SelectorPdfProps = {
   id: string
@@ -31,7 +17,6 @@ const esPdf = (archivo: File) => (
 
 function SelectorPdf({ id, archivo, onSeleccionar, onError, required = false }: SelectorPdfProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const [abriendo, setAbriendo] = useState(false)
   const android = esAndroid()
 
   const aceptarArchivo = (pdf: File) => {
@@ -52,33 +37,10 @@ function SelectorPdf({ id, archivo, onSeleccionar, onError, required = false }: 
     }
   }
 
-  const abrirRecientes = async () => {
-    const ventana = window as VentanaConSelectorPdf
-
-    if (!ventana.showOpenFilePicker) {
-      inputRef.current?.click()
-      return
-    }
-
-    try {
-      setAbriendo(true)
-      const [manejador] = await ventana.showOpenFilePicker({
-        id: 'papeleria-asistodo',
-        startIn: 'downloads',
-        multiple: false,
-        excludeAcceptAllOption: true,
-        types: [{ description: 'Papeleria PDF', accept: { 'application/pdf': ['.pdf'] } }],
-      })
-
-      if (manejador) {
-        aceptarArchivo(await manejador.getFile())
-      }
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) {
-        onError('No se pudo abrir Descargas. Usa "Elegir otro PDF".')
-      }
-    } finally {
-      setAbriendo(false)
+  const abrirRecientes = () => {
+    if (inputRef.current) {
+      inputRef.current.value = ''
+      inputRef.current.click()
     }
   }
 
@@ -87,7 +49,7 @@ function SelectorPdf({ id, archivo, onSeleccionar, onError, required = false }: 
       ref={inputRef}
       id={id}
       type="file"
-      accept=".pdf,application/pdf"
+      accept="application/pdf"
       className={android ? 'visually-hidden' : 'form-control form-control-lg'}
       onChange={cargarDesdeInput}
       required={required && !android}
@@ -104,13 +66,10 @@ function SelectorPdf({ id, archivo, onSeleccionar, onError, required = false }: 
         type="button"
         className="btn btn-primary btn-lg"
         onClick={abrirRecientes}
-        disabled={abriendo}
       >
-        {abriendo && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
-        {abriendo ? 'Abriendo...' : 'Abrir PDF reciente'}
+        Abrir archivos recientes
       </button>
-      <p className="small text-secondary mb-0">Toca el primer PDF de la lista.</p>
-      <label htmlFor={id} className="btn btn-outline-primary">Elegir otro PDF</label>
+      <p className="small text-secondary mb-0">Selecciona la papeleria PDF recibida por WhatsApp.</p>
       {archivo && <p className="fw-semibold text-success mb-0">PDF listo: {archivo.name}</p>}
       {input}
     </div>
