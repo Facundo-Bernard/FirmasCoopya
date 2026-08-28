@@ -31,12 +31,12 @@ const generarCodigoPdf = () => {
   return btoa(texto).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-const crearEnlaceConCodigo = (codigo: string) => {
+const crearEnlaceConCodigo = (codigo: string, vence: number) => {
   const enlace = new URL('/firma-digital', window.location.origin)
   // El fragmento no se envía al servidor ni forma parte de las solicitudes a AWS.
   enlace.hash = new URLSearchParams({
     codigo,
-    vence: String(Date.now() + DURACION_ENLACE_MS),
+    vence: String(vence),
   }).toString()
   return enlace.toString()
 }
@@ -114,6 +114,7 @@ function PapeleriaAws() {
       setEnlace('')
       setEstado('Solicitando autorización para la carga...')
       const codigoGenerado = generarCodigoPdf()
+      const vence = Date.now() + DURACION_ENLACE_MS
 
       const respuesta = await fetch('/api/pdf/upload-request', {
         method: 'POST',
@@ -125,6 +126,7 @@ function PapeleriaAws() {
           contentType: archivo.type,
           size: archivo.size,
           documentKey: codigoGenerado,
+          expiresAt: vence,
         }),
       })
 
@@ -142,7 +144,7 @@ function PapeleriaAws() {
       await subirDirectamenteAS3(archivo, solicitud.upload, setProgreso)
 
       setCodigo(codigoGenerado)
-      setEnlace(crearEnlaceConCodigo(codigoGenerado))
+      setEnlace(crearEnlaceConCodigo(codigoGenerado, vence))
       setEstado('La papelería fue enviada correctamente.')
     } catch (error) {
       const detalle = error instanceof Error ? ` ${error.message}` : ''

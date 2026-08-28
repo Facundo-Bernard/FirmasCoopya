@@ -1,10 +1,8 @@
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { createHash } from 'node:crypto'
 import { awsConfig } from '../_lib/aws.js'
 
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
-const URL_EXPIRATION_SECONDS = 60
 
 const responder = (response, status, body) => {
   response.setHeader('Cache-Control', 'no-store')
@@ -12,8 +10,8 @@ const responder = (response, status, body) => {
 }
 
 export default async function handler(request, response) {
-  if (request.method !== 'GET') {
-    response.setHeader('Allow', 'GET')
+  if (request.method !== 'POST') {
+    response.setHeader('Allow', 'POST')
     return responder(response, 405, { error: 'Method not allowed.' })
   }
 
@@ -34,34 +32,23 @@ export default async function handler(request, response) {
       const object = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }))
       const expiresAt = Number(object.Metadata?.['expires-at'])
 
-      if (Number.isSafeInteger(expiresAt) && Date.now() >= expiresAt) {
-        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
-        return responder(response, 410, { error: 'Link expired.' })
+      if (!Number.isSafeInteger(expiresAt) || Date.now() < expiresAt) {
+        return responder(response, 403, { error: 'Document has not expired.' })
       }
     } catch (error) {
       if (error && typeof error === 'object' && '$metadata' in error && error.$metadata?.httpStatusCode === 404) {
-        return responder(response, 404, { error: 'Document not found.' })
+        return responder(response, 200, { deleted: true })
       }
       throw error
     }
 
-    const url = await getSignedUrl(
-      client,
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
-        ResponseContentType: 'application/pdf',
-        ResponseContentDisposition: 'inline; filename="papeleria.pdf"',
-      }),
-      { expiresIn: URL_EXPIRATION_SECONDS },
-    )
-
-    return responder(response, 200, { url, expiresIn: URL_EXPIRATION_SECONDS })
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
+    return responder(response, 200, { deleted: true })
   } catch (error) {
-    console.error('Could not prepare S3 download.', {
+    console.error('Could not delete expired S3 document.', {
       name: error instanceof Error ? error.name : 'UnknownError',
       message: error instanceof Error ? error.message : 'Unknown error',
     })
-    return responder(response, 500, { error: 'Could not prepare download.' })
+    return responder(response, 500, { error: 'Could not delete expired document.' })
   }
 }

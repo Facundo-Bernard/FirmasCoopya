@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 
 const MAX_PDF_BYTES = Number(process.env.MAX_PDF_BYTES ?? 20 * 1024 * 1024)
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
+const LINK_DURATION_MS = 30 * 60 * 1000
 
 const responder = (response, status, body) => {
   response.setHeader('Cache-Control', 'no-store')
@@ -34,7 +35,8 @@ export default async function handler(request, response) {
     return responder(response, 405, { error: 'Method not allowed.' })
   }
 
-  const { fileName, contentType, size, documentKey } = request.body ?? {}
+  const { fileName, contentType, size, documentKey, expiresAt } = request.body ?? {}
+  const now = Date.now()
   const esArchivoValido =
     typeof fileName === 'string' &&
     /\.pdf$/i.test(fileName) &&
@@ -42,8 +44,17 @@ export default async function handler(request, response) {
     Number.isInteger(size) &&
     size > 0 &&
     size <= MAX_PDF_BYTES
+  const esVencimientoValido =
+    Number.isSafeInteger(expiresAt) &&
+    expiresAt > now &&
+    expiresAt <= now + LINK_DURATION_MS + 60_000
 
-  if (!esArchivoValido || typeof documentKey !== 'string' || !DOCUMENT_KEY_PATTERN.test(documentKey)) {
+  if (
+    !esArchivoValido ||
+    typeof documentKey !== 'string' ||
+    !DOCUMENT_KEY_PATTERN.test(documentKey) ||
+    !esVencimientoValido
+  ) {
     return responder(response, 400, { error: 'Invalid upload request.' })
   }
 
@@ -57,9 +68,11 @@ export default async function handler(request, response) {
       Expires: 300,
       Fields: {
         'Content-Type': 'application/pdf',
+        'x-amz-meta-expires-at': String(expiresAt),
       },
       Conditions: [
         ['eq', '$Content-Type', 'application/pdf'],
+        ['eq', '$x-amz-meta-expires-at', String(expiresAt)],
         ['content-length-range', 1, MAX_PDF_BYTES],
       ],
     })

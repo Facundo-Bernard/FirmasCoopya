@@ -12,7 +12,7 @@ const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
 const MAXIMO_ENVIO_BYTES = 10_000_000
 const MAXIMO_PDF_BYTES = 20 * 1024 * 1024
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
-const API_HORA_UTC = 'https://timeapi.io/api/Time/current/zone?timeZone=UTC'
+const API_HORA_UTC = 'https://utctime.app/api/now'
 
 type DownloadUrlResponse = {
   url: string
@@ -20,13 +20,7 @@ type DownloadUrlResponse = {
 }
 
 type HoraUtcResponse = {
-  year: number
-  month: number
-  day: number
-  hour: number
-  minute: number
-  seconds: number
-  milliSeconds?: number
+  unix_ms: number
 }
 
 const obtenerHoraUtc = async (signal: AbortSignal) => {
@@ -36,20 +30,19 @@ const obtenerHoraUtc = async (signal: AbortSignal) => {
   }
 
   const hora = (await respuesta.json()) as HoraUtcResponse
-  const valores = [hora.year, hora.month, hora.day, hora.hour, hora.minute, hora.seconds]
-  if (!valores.every(Number.isInteger)) {
+  if (!Number.isInteger(hora.unix_ms)) {
     throw new Error('La hora recibida no es válida.')
   }
 
-  return Date.UTC(
-    hora.year,
-    hora.month - 1,
-    hora.day,
-    hora.hour,
-    hora.minute,
-    hora.seconds,
-    Number.isInteger(hora.milliSeconds) ? hora.milliSeconds : 0,
-  )
+  return hora.unix_ms
+}
+
+const eliminarPapeleriaVencida = async (codigo: string, signal: AbortSignal) => {
+  await fetch('/api/pdf/delete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${codigo}` },
+    signal,
+  })
 }
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
@@ -162,6 +155,7 @@ function UnificarPap() {
         const horaActual = await obtenerHoraUtc(controlador.signal)
         if (horaActual >= vencimientoDelEnlace) {
           setMensaje('Link expirado')
+          void eliminarPapeleriaVencida(codigoDelEnlace, controlador.signal).catch(() => undefined)
           return
         }
 
@@ -173,6 +167,10 @@ function UnificarPap() {
         })
 
         if (!respuesta.ok) {
+          if (respuesta.status === 410) {
+            setMensaje('Link expirado')
+            return
+          }
           throw new Error('No se encontró la papelería asociada a este enlace.')
         }
 
