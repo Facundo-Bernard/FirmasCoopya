@@ -204,7 +204,6 @@ function PapeleriaAws() {
               <input id="enlace-papeleria" className="form-control" value={enlace} readOnly />
               <button type="button" className="btn btn-outline-secondary" onClick={() => void copiar(enlace)}>Copiar enlace</button>
             </div>
-            <p className="form-text mb-0 mt-2">El código se conserva en el fragmento del enlace, por lo que no se envía al servidor al abrirlo.</p>
           </section>
         )}
       </div>
