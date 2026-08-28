@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
+const DURACION_ENLACE_MS = 30 * 60 * 1000
 
 type UploadRequestResponse = {
   upload: {
@@ -33,7 +34,10 @@ const generarCodigoPdf = () => {
 const crearEnlaceConCodigo = (codigo: string) => {
   const enlace = new URL('/firma-digital', window.location.origin)
   // El fragmento no se envía al servidor ni forma parte de las solicitudes a AWS.
-  enlace.hash = new URLSearchParams({ codigo }).toString()
+  enlace.hash = new URLSearchParams({
+    codigo,
+    vence: String(Date.now() + DURACION_ENLACE_MS),
+  }).toString()
   return enlace.toString()
 }
 
@@ -178,7 +182,7 @@ function PapeleriaAws() {
           </div>
 
           <button type="submit" className="btn btn-primary btn-lg" disabled={enviando} aria-busy={enviando}>
-            {enviando ? 'Enviando...' : 'Enviar a AWS'}
+            {enviando ? 'Enviando...' : 'Enviar a sistema de firma digital'}
           </button>
 
           {enviando && (

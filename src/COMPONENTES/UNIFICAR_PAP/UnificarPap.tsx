@@ -12,10 +12,44 @@ const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
 const MAXIMO_ENVIO_BYTES = 10_000_000
 const MAXIMO_PDF_BYTES = 20 * 1024 * 1024
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
+const API_HORA_UTC = 'https://timeapi.io/api/Time/current/zone?timeZone=UTC'
 
 type DownloadUrlResponse = {
   url: string
   expiresIn: number
+}
+
+type HoraUtcResponse = {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  seconds: number
+  milliSeconds?: number
+}
+
+const obtenerHoraUtc = async (signal: AbortSignal) => {
+  const respuesta = await fetch(API_HORA_UTC, { signal })
+  if (!respuesta.ok) {
+    throw new Error('No se pudo consultar la hora actual.')
+  }
+
+  const hora = (await respuesta.json()) as HoraUtcResponse
+  const valores = [hora.year, hora.month, hora.day, hora.hour, hora.minute, hora.seconds]
+  if (!valores.every(Number.isInteger)) {
+    throw new Error('La hora recibida no es válida.')
+  }
+
+  return Date.UTC(
+    hora.year,
+    hora.month - 1,
+    hora.day,
+    hora.hour,
+    hora.minute,
+    hora.seconds,
+    Number.isInteger(hora.milliSeconds) ? hora.milliSeconds : 0,
+  )
 }
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
@@ -71,7 +105,9 @@ function UnificarPap() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
   const [cargandoPapeleriaDelEnlace, setCargandoPapeleriaDelEnlace] = useState(false)
-  const codigoDelEnlace = new URLSearchParams(location.hash.slice(1)).get('codigo')
+  const parametrosDelEnlace = new URLSearchParams(location.hash.slice(1))
+  const codigoDelEnlace = parametrosDelEnlace.get('codigo')
+  const vencimientoDelEnlace = Number(parametrosDelEnlace.get('vence'))
 
   useEffect(() => {
     return () => {
@@ -110,8 +146,8 @@ function UnificarPap() {
       return
     }
 
-    if (!DOCUMENT_KEY_PATTERN.test(codigoDelEnlace)) {
-      setMensaje('El enlace de la papelería no es válido.')
+    if (!DOCUMENT_KEY_PATTERN.test(codigoDelEnlace) || !Number.isFinite(vencimientoDelEnlace)) {
+      setMensaje('Link expirado')
       return
     }
 
@@ -120,8 +156,16 @@ function UnificarPap() {
     const recuperarPdf = async () => {
       try {
         setCargandoPapeleriaDelEnlace(true)
-        setMensaje('Recuperando la papelería desde el enlace...')
+        setMensaje('Validando la vigencia del enlace...')
         setTroubleshooting('')
+
+        const horaActual = await obtenerHoraUtc(controlador.signal)
+        if (horaActual >= vencimientoDelEnlace) {
+          setMensaje('Link expirado')
+          return
+        }
+
+        setMensaje('Recuperando la papelería desde el enlace...')
 
         const respuesta = await fetch('/api/pdf/download-url', {
           headers: { Authorization: `Bearer ${codigoDelEnlace}` },
@@ -163,7 +207,7 @@ function UnificarPap() {
     void recuperarPdf()
 
     return () => controlador.abort()
-  }, [codigoDelEnlace])
+  }, [codigoDelEnlace, vencimientoDelEnlace])
 
   const unificar = async () => {
     if (procesandoPdf) {
