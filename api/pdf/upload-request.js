@@ -10,6 +10,24 @@ const responder = (response, status, body) => {
   return response.status(status).json(body)
 }
 
+const diagnosticoSeguro = (error) => {
+  const message = error instanceof Error ? error.message : ''
+
+  if (message.startsWith('Missing required environment variable:')) {
+    return message
+  }
+
+  if (/region/i.test(message)) {
+    return 'La región configurada para AWS no es válida.'
+  }
+
+  if (/credential|access key/i.test(message)) {
+    return 'Las credenciales de AWS no son válidas.'
+  }
+
+  return 'AWS no pudo preparar la carga firmada.'
+}
+
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST')
@@ -52,6 +70,9 @@ export default async function handler(request, response) {
       name: error instanceof Error ? error.name : 'UnknownError',
       message: error instanceof Error ? error.message : 'Unknown error',
     })
-    return responder(response, 500, { error: 'Could not prepare the upload.' })
+    return responder(response, 500, {
+      error: 'Could not prepare the upload.',
+      diagnostic: diagnosticoSeguro(error),
+    })
   }
 }

@@ -12,6 +12,10 @@ type UploadRequestResponse = {
   expiresIn: number
 }
 
+type UploadRequestError = {
+  diagnostic?: string
+}
+
 const esPdfValido = (archivo: File) =>
   archivo.type === 'application/pdf' && /\.pdf$/i.test(archivo.name) && archivo.size > 0 && archivo.size <= MAX_PDF_BYTES
 
@@ -115,7 +119,8 @@ function PapeleriaAws() {
       })
 
       if (!respuesta.ok) {
-        throw new Error('No fue posible autorizar la carga.')
+        const detalle = (await respuesta.json().catch(() => ({}))) as UploadRequestError
+        throw new Error(detalle.diagnostic ?? 'No fue posible preparar la carga.')
       }
 
       const solicitud = (await respuesta.json()) as UploadRequestResponse
@@ -129,8 +134,9 @@ function PapeleriaAws() {
       setCodigo(codigoGenerado)
       setEnlace(crearEnlaceConCodigo(codigoGenerado))
       setEstado('La papelería fue enviada correctamente.')
-    } catch {
-      setEstado('No se pudo enviar la papelería. Verificá la clave e intentá nuevamente.')
+    } catch (error) {
+      const detalle = error instanceof Error ? ` ${error.message}` : ''
+      setEstado(`No se pudo enviar la papelería.${detalle}`)
     } finally {
       setEnviando(false)
     }
