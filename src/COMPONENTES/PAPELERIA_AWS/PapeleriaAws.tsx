@@ -162,7 +162,7 @@ function PapeleriaAws() {
       <div className="container py-4" style={{ maxWidth: '760px' }}>
         <Link to="/" className="btn btn-link px-0 mb-3">Volver al inicio</Link>
         <h1 className="fw-bold mb-2">Enviar papelería</h1>
-        <p className="text-secondary mb-4">El PDF se carga directamente en el almacenamiento privado. No se expone ninguna credencial de AWS.</p>
+        <p className="text-secondary mb-4">En esta pantalla vas a poder cargar papelería y generar un link para compartir al cliente</p>
 
         <form className="border rounded p-3 p-md-4 bg-body-tertiary" onSubmit={enviarPapeleria}>
           <div className="mb-4">
@@ -195,14 +195,9 @@ function PapeleriaAws() {
 
         {codigo && enlace && (
           <section className="border border-success rounded p-3 p-md-4 mt-4">
-            <h2 className="h4">Código y enlace creados</h2>
-            <p className="mb-3">El código fue generado al azar en este navegador. El enlace abre el circuito normal de firma y recupera esta papelería automáticamente.</p>
+            <h2 className="h4">Enlace creado</h2>
+            <p className="mb-3">Una vez generado el link, enviale el enlace a la persona que necesita firmar, al entrar, se pondra la papelería que cargaste de forma automatica</p>
 
-            <label htmlFor="codigo-papeleria" className="form-label fw-semibold">Código del documento</label>
-            <div className="input-group mb-3">
-              <input id="codigo-papeleria" className="form-control" value={codigo} readOnly />
-              <button type="button" className="btn btn-outline-secondary" onClick={() => void copiar(codigo)}>Copiar código</button>
-            </div>
 
             <label htmlFor="enlace-papeleria" className="form-label fw-semibold">Enlace asociado</label>
             <div className="input-group">
