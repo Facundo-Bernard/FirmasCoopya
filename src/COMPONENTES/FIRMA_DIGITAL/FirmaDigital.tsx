@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { guardarFirma, limpiarFirma } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
@@ -9,6 +9,7 @@ import './FirmaDigital.css'
 function FirmaDigital() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
   const dispatch = useDispatch<AppDispatch>()
+  const location = useLocation()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
   const [disabled, setDisabled] = useState(!firmaPng)
 
@@ -78,7 +79,7 @@ function FirmaDigital() {
           </button>
 
           {!disabled ? (
-            <Link to="/unificarpap" className="btn btn-primary">
+            <Link to={`/unificarpap${location.hash}`} className="btn btn-primary">
               Siguiente
             </Link>
           ) : (

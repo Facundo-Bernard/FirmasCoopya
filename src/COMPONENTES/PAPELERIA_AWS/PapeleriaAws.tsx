@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
 
@@ -31,7 +31,7 @@ const generarCodigoPdf = () => {
 }
 
 const crearEnlaceConCodigo = (codigo: string) => {
-  const enlace = new URL('/papeleria-aws', window.location.origin)
+  const enlace = new URL('/firma-digital', window.location.origin)
   // El fragmento no se envía al servidor ni forma parte de las solicitudes a AWS.
   enlace.hash = new URLSearchParams({ codigo }).toString()
   return enlace.toString()
@@ -63,12 +63,18 @@ const subirDirectamenteAS3 = (archivo: File, upload: UploadRequestResponse['uplo
   })
 
 function PapeleriaAws() {
+  const location = useLocation()
   const [archivo, setArchivo] = useState<File | null>(null)
   const [estado, setEstado] = useState('Seleccioná un PDF para comenzar.')
   const [enviando, setEnviando] = useState(false)
   const [progreso, setProgreso] = useState(0)
   const [codigo, setCodigo] = useState('')
   const [enlace, setEnlace] = useState('')
+  const codigoDeEnlaceAnterior = new URLSearchParams(location.hash.slice(1)).get('codigo')
+
+  if (codigoDeEnlaceAnterior) {
+    return <Navigate to={`/firma-digital${location.hash}`} replace />
+  }
 
   const seleccionarArchivo = (evento: ChangeEvent<HTMLInputElement>) => {
     const seleccionado = evento.target.files?.[0] ?? null
@@ -190,7 +196,7 @@ function PapeleriaAws() {
         {codigo && enlace && (
           <section className="border border-success rounded p-3 p-md-4 mt-4">
             <h2 className="h4">Código y enlace creados</h2>
-            <p className="mb-3">El código fue generado al azar en este navegador y enviado para identificar el PDF. Guardá ambos datos; más adelante se definirá qué hará el enlace.</p>
+            <p className="mb-3">El código fue generado al azar en este navegador. El enlace abre el circuito normal de firma y recupera esta papelería automáticamente.</p>
 
             <label htmlFor="codigo-papeleria" className="form-label fw-semibold">Código del documento</label>
             <div className="input-group mb-3">

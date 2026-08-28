@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import type { RootState } from '../../REDUX/store'
@@ -10,6 +10,13 @@ import CapturaCamara from './CapturaCamara'
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
 const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
 const MAXIMO_ENVIO_BYTES = 10_000_000
+const MAXIMO_PDF_BYTES = 20 * 1024 * 1024
+const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
+
+type DownloadUrlResponse = {
+  url: string
+  expiresIn: number
+}
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -44,6 +51,7 @@ const mensajeDeEnvio = (error: unknown) => {
 }
 
 function UnificarPap() {
+  const location = useLocation()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
   const [documentoBytes, setDocumentoBytes] = useState<Uint8Array | null>(null)
@@ -62,6 +70,8 @@ function UnificarPap() {
   const [envioCompleto, setEnvioCompleto] = useState(false)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
+  const [cargandoPapeleriaDelEnlace, setCargandoPapeleriaDelEnlace] = useState(false)
+  const codigoDelEnlace = new URLSearchParams(location.hash.slice(1)).get('codigo')
 
   useEffect(() => {
     return () => {
@@ -71,13 +81,7 @@ function UnificarPap() {
     }
   }, [documentoUrl])
 
-  const cargarPdf = (event: ChangeEvent<HTMLInputElement>) => {
-    const archivo = event.target.files?.[0]
-
-    if (!archivo) {
-      return
-    }
-
+  const prepararPdf = (archivo: File) => {
     setArchivoPdf(archivo)
     setDocumentoBytes(null)
     setDocumentoUrl(URL.createObjectURL(archivo))
@@ -92,6 +96,74 @@ function UnificarPap() {
     setMostrarConfirmacion(false)
     setMostrarEnvio(false)
   }
+
+  const cargarPdf = (event: ChangeEvent<HTMLInputElement>) => {
+    const archivo = event.target.files?.[0]
+
+    if (archivo) {
+      prepararPdf(archivo)
+    }
+  }
+
+  useEffect(() => {
+    if (!codigoDelEnlace) {
+      return
+    }
+
+    if (!DOCUMENT_KEY_PATTERN.test(codigoDelEnlace)) {
+      setMensaje('El enlace de la papelería no es válido.')
+      return
+    }
+
+    const controlador = new AbortController()
+
+    const recuperarPdf = async () => {
+      try {
+        setCargandoPapeleriaDelEnlace(true)
+        setMensaje('Recuperando la papelería desde el enlace...')
+        setTroubleshooting('')
+
+        const respuesta = await fetch('/api/pdf/download-url', {
+          headers: { Authorization: `Bearer ${codigoDelEnlace}` },
+          signal: controlador.signal,
+        })
+
+        if (!respuesta.ok) {
+          throw new Error('No se encontró la papelería asociada a este enlace.')
+        }
+
+        const descarga = (await respuesta.json()) as DownloadUrlResponse
+        if (!descarga.url) {
+          throw new Error('La descarga no está disponible.')
+        }
+
+        const archivoRespuesta = await fetch(descarga.url, { signal: controlador.signal })
+        if (!archivoRespuesta.ok) {
+          throw new Error('No se pudo descargar la papelería.')
+        }
+
+        const pdf = await archivoRespuesta.blob()
+        if (!pdf.size || pdf.size > MAXIMO_PDF_BYTES) {
+          throw new Error('El archivo recuperado no es válido.')
+        }
+
+        prepararPdf(new File([pdf], 'papeleria.pdf', { type: 'application/pdf' }))
+        setMensaje('Papelería recuperada. Ahora podés colocar la firma.')
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+
+        setMensaje('No se pudo recuperar la papelería. El enlace puede ser inválido o el archivo ya no estar disponible.')
+      } finally {
+        setCargandoPapeleriaDelEnlace(false)
+      }
+    }
+
+    void recuperarPdf()
+
+    return () => controlador.abort()
+  }, [codigoDelEnlace])
 
   const unificar = async () => {
     if (procesandoPdf) {
@@ -199,7 +271,7 @@ function UnificarPap() {
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
-        <Link to="/firma-digital" className="btn btn-link text-primary px-0 mb-3">
+        <Link to={`/firma-digital${location.hash}`} className="btn btn-link text-primary px-0 mb-3">
           Volver
         </Link>
 
@@ -207,8 +279,24 @@ function UnificarPap() {
 
         <div className="mb-3">
           <p className="fs-5">Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
-          <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
-          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} />
+
+          {codigoDelEnlace ? (
+            <div className="border rounded bg-body-tertiary p-3">
+              <h2 className="h5 mb-1">Papelería del enlace</h2>
+              <p className="mb-0">
+                {cargandoPapeleriaDelEnlace
+                  ? 'Descargando el PDF privado...'
+                  : archivoPdf
+                    ? 'El PDF ya está listo para firmar.'
+                    : 'No se pudo preparar el PDF.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
+              <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} />
+            </>
+          )}
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
@@ -216,7 +304,7 @@ function UnificarPap() {
             type="button"
             className="btn btn-primary"
             onClick={unificar}
-            disabled={procesandoPdf}
+            disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
             aria-busy={procesandoPdf}
           >
             {procesandoPdf && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
