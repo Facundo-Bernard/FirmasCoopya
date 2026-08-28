@@ -160,7 +160,6 @@ function PapeleriaAws() {
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4" style={{ maxWidth: '760px' }}>
-        <Link to="/" className="btn btn-link px-0 mb-3">Volver al inicio</Link>
         <h1 className="fw-bold mb-2">Enviar papelería</h1>
         <p className="text-secondary mb-4">En esta pantalla vas a poder cargar papelería y generar un link para compartir al cliente</p>
 
