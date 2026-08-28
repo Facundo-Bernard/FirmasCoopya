@@ -47,7 +47,11 @@ export default async function handler(request, response) {
     })
 
     return responder(response, 200, { upload, expiresIn: 300 })
-  } catch {
+  } catch (error) {
+    console.error('Could not prepare S3 upload.', {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    })
     return responder(response, 500, { error: 'Could not prepare the upload.' })
   }
 }
