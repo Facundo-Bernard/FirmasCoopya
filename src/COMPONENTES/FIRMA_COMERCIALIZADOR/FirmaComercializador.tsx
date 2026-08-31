@@ -10,11 +10,70 @@ import {
 } from '../../SERVICIOS/firmarPdf'
 import '../FIRMA_DIGITAL/FirmaDigital.css'
 
+const MAX_PDF_BYTES = 20 * 1024 * 1024
+const DURACION_ENLACE_MS = 30 * 60 * 1000
+
+type UploadRequestResponse = {
+  upload: {
+    url: string
+    fields: Record<string, string>
+  }
+}
+
+type UploadRequestError = {
+  diagnostic?: string
+}
+
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
   new Uint8Array(copia).set(bytes)
   return copia
 }
+
+const generarCodigoPdf = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  let texto = ''
+
+  bytes.forEach((byte) => {
+    texto += String.fromCharCode(byte)
+  })
+
+  return btoa(texto).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+const crearEnlaceConCodigo = (codigo: string, vence: number) => {
+  const enlace = new URL('/firma-digital', window.location.origin)
+  enlace.hash = new URLSearchParams({
+    codigo,
+    vence: String(vence),
+  }).toString()
+  return enlace.toString()
+}
+
+const subirDirectamenteAS3 = (archivo: File, upload: UploadRequestResponse['upload'], onProgress: (progreso: number) => void) =>
+  new Promise<void>((resolve, reject) => {
+    const formulario = new FormData()
+
+    Object.entries(upload.fields).forEach(([campo, valor]) => formulario.append(campo, valor))
+    formulario.append('file', archivo)
+
+    const solicitud = new XMLHttpRequest()
+    solicitud.open('POST', upload.url)
+    solicitud.upload.onprogress = (evento) => {
+      if (evento.lengthComputable) {
+        onProgress(Math.round((evento.loaded / evento.total) * 100))
+      }
+    }
+    solicitud.onload = () => {
+      if (solicitud.status >= 200 && solicitud.status < 300) {
+        resolve()
+        return
+      }
+      reject(new Error('S3 rechazó la carga.'))
+    }
+    solicitud.onerror = () => reject(new Error('No se pudo conectar con S3.'))
+    solicitud.send(formulario)
+  })
 
 const DESPLAZAMIENTO_TILDE_PLAN = 55
 
@@ -195,12 +254,23 @@ function FirmaComercializador() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
   const [firmaPng, setFirmaPng] = useState<string | null>(null)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
+  const [documentoFirmado, setDocumentoFirmado] = useState<File | null>(null)
   const [archivoUrl, setArchivoUrl] = useState<string | null>(null)
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
   const [planId, setPlanId] = useState<PlanId | null>(null)
   const [datosComercializador, setDatosComercializador] = useState<DatosComercializador>(DATOS_INICIALES)
   const [mensaje, setMensaje] = useState('')
   const [procesando, setProcesando] = useState(false)
+  const [enviandoPapeleria, setEnviandoPapeleria] = useState(false)
+  const [progreso, setProgreso] = useState(0)
+  const [enlace, setEnlace] = useState('')
+
+  const reiniciarDocumentoFirmado = () => {
+    setDocumentoFirmado(null)
+    setDocumentoUrl(null)
+    setEnlace('')
+    setProgreso(0)
+  }
 
   useEffect(() => {
     return () => {
@@ -224,14 +294,14 @@ function FirmaComercializador() {
     setFirmaPng(signaturePad && !signaturePad.isEmpty()
       ? signaturePad.getCanvas().toDataURL('image/png')
       : null)
-    setDocumentoUrl(null)
+    reiniciarDocumentoFirmado()
     setMensaje('')
   }
 
   const limpiarFirma = () => {
     signatureRef.current?.clear()
     setFirmaPng(null)
-    setDocumentoUrl(null)
+    reiniciarDocumentoFirmado()
     setMensaje('')
   }
 
@@ -245,19 +315,20 @@ function FirmaComercializador() {
     if (!archivo.name.toLowerCase().endsWith('.pdf')) {
       setArchivoPdf(null)
       setArchivoUrl(null)
+      reiniciarDocumentoFirmado()
       setMensaje('Selecciona un archivo PDF valido.')
       return
     }
 
     setArchivoPdf(archivo)
     setArchivoUrl(URL.createObjectURL(archivo))
-    setDocumentoUrl(null)
+    reiniciarDocumentoFirmado()
     setMensaje('')
   }
 
   const seleccionarPlan = (event: ChangeEvent<HTMLInputElement>) => {
     setPlanId(event.target.value as PlanId)
-    setDocumentoUrl(null)
+    reiniciarDocumentoFirmado()
     setMensaje('')
   }
 
@@ -266,7 +337,7 @@ function FirmaComercializador() {
       ...datosActuales,
       [campo]: event.target.value,
     }))
-    setDocumentoUrl(null)
+    reiniciarDocumentoFirmado()
     setMensaje('')
   }
 
@@ -299,7 +370,7 @@ function FirmaComercializador() {
 
     try {
       setProcesando(true)
-      setDocumentoUrl(null)
+      reiniciarDocumentoFirmado()
       setMensaje('Colocando firma...')
 
       const camposTexto: CampoTextoPdf[] = CAMPOS_COMERCIALIZADOR.map((campo) => ({
@@ -339,13 +410,79 @@ function FirmaComercializador() {
         return
       }
 
-      const blob = new Blob([copiarArrayBuffer(resultado.bytes)], { type: 'application/pdf' })
-      setDocumentoUrl(URL.createObjectURL(blob))
+      const documento = new File([copiarArrayBuffer(resultado.bytes)], nombreDescarga, { type: 'application/pdf' })
+      setDocumentoFirmado(documento)
+      setDocumentoUrl(URL.createObjectURL(documento))
       setMensaje(`Firma, ${planSeleccionado.nombre} y todos los datos colocados correctamente.`)
     } catch (error) {
       setMensaje(`No se pudo firmar el PDF: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setProcesando(false)
+    }
+  }
+
+  const enviarPapeleriaFirmada = async () => {
+    if (!documentoFirmado || enviandoPapeleria) {
+      return
+    }
+
+    if (!documentoFirmado.size || documentoFirmado.size > MAX_PDF_BYTES) {
+      setMensaje('El PDF firmado supera el límite de 20 MB y no se puede enviar.')
+      return
+    }
+
+    try {
+      setEnviandoPapeleria(true)
+      setProgreso(0)
+      setEnlace('')
+      setMensaje('Solicitando autorización para enviar la papelería...')
+      const codigo = generarCodigoPdf()
+      const vence = Date.now() + DURACION_ENLACE_MS
+
+      const respuesta = await fetch('/api/pdf/upload-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: documentoFirmado.name,
+          contentType: documentoFirmado.type,
+          size: documentoFirmado.size,
+          documentKey: codigo,
+          expiresAt: vence,
+        }),
+      })
+
+      if (!respuesta.ok) {
+        const detalle = (await respuesta.json().catch(() => ({}))) as UploadRequestError
+        throw new Error(detalle.diagnostic ?? 'No fue posible preparar el envío.')
+      }
+
+      const solicitud = (await respuesta.json()) as UploadRequestResponse
+      if (!solicitud.upload?.url || !solicitud.upload.fields) {
+        throw new Error('La autorización recibida no es válida.')
+      }
+
+      setMensaje('Enviando la papelería firmada al almacenamiento seguro...')
+      await subirDirectamenteAS3(documentoFirmado, solicitud.upload, setProgreso)
+      setEnlace(crearEnlaceConCodigo(codigo, vence))
+      setMensaje('La papelería firmada fue enviada correctamente.')
+    } catch (error) {
+      const detalle = error instanceof Error ? ` ${error.message}` : ''
+      setMensaje(`No se pudo enviar la papelería firmada.${detalle}`)
+    } finally {
+      setEnviandoPapeleria(false)
+    }
+  }
+
+  const copiarEnlace = async () => {
+    if (!enlace) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(enlace)
+      setMensaje('Link copiado al portapapeles.')
+    } catch {
+      setMensaje('No se pudo copiar automáticamente. Seleccioná el link y copialo manualmente.')
     }
   }
 
@@ -365,7 +502,7 @@ function FirmaComercializador() {
         </Link>
 
         <h1 className="fw-bold text-primary mb-2">Firma del comercializador</h1>
-        <p className="fs-5 mb-4">Firma la papelería y descarga el PDF. No se enviará ningún correo.</p>
+        <p className="fs-5 mb-4">Completa y firma la papelería. Después podrás generar un link para que la persona continúe con su firma.</p>
 
         <form onSubmit={colocarFirma}>
         <section className="border rounded p-3 p-md-4 mb-4">
@@ -464,9 +601,41 @@ function FirmaComercializador() {
         {vistaPreviaUrl && (
           <section className="mb-3">
             {documentoUrl && (
-              <a href={documentoUrl} download={nombreDescarga} className="btn btn-primary btn-lg mb-3">
-                Descargar PDF firmado
-              </a>
+              <>
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                  <a href={documentoUrl} download={nombreDescarga} className="btn btn-outline-primary btn-lg">
+                    Descargar PDF firmado
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-lg"
+                    onClick={() => void enviarPapeleriaFirmada()}
+                    disabled={enviandoPapeleria}
+                    aria-busy={enviandoPapeleria}
+                  >
+                    {enviandoPapeleria && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+                    {enviandoPapeleria ? 'Enviando papelería...' : 'Enviar papelería y generar link'}
+                  </button>
+                </div>
+
+                {enviandoPapeleria && (
+                  <div className="progress mb-3" role="progressbar" aria-label="Progreso de carga" aria-valuenow={progreso} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="progress-bar" style={{ width: `${progreso}%` }}>{progreso}%</div>
+                  </div>
+                )}
+
+                {enlace && (
+                  <section className="border border-success rounded p-3 p-md-4 mb-3">
+                    <h2 className="h4">Link creado</h2>
+                    <p className="mb-3">Compartí este link con la persona que debe firmar. La papelería ya tendrá la firma y los datos del comercializador.</p>
+                    <label htmlFor="enlace-papeleria-comercializador" className="form-label fw-semibold">Link asociado</label>
+                    <div className="input-group">
+                      <input id="enlace-papeleria-comercializador" className="form-control" value={enlace} readOnly />
+                      <button type="button" className="btn btn-outline-secondary" onClick={() => void copiarEnlace()}>Copiar link</button>
+                    </div>
+                  </section>
+                )}
+              </>
             )}
             <h2 className="h4 mb-3">{documentoUrl ? 'Documento firmado' : 'Vista previa del documento'}</h2>
             <iframe
