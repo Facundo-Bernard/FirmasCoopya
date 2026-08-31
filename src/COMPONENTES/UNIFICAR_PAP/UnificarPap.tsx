@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
 import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
-import type { RootState } from '../../REDUX/store'
+import { guardarClavePapeleria, limpiarClavePapeleria } from '../../REDUX/reducer'
+import type { AppDispatch, RootState } from '../../REDUX/store'
 import CapturaCamara from './CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
@@ -45,6 +46,21 @@ const eliminarPapeleriaVencida = async (codigo: string, signal: AbortSignal) => 
   })
 }
 
+const eliminarPapeleriaTrasEnvio = async (codigo: string) => {
+  const respuesta = await fetch('/api/pdf/delete', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${codigo}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason: 'email-confirmed' }),
+  })
+
+  if (!respuesta.ok) {
+    throw new Error('No se pudo eliminar la papelería privada.')
+  }
+}
+
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
   new Uint8Array(copia).set(bytes)
@@ -79,7 +95,9 @@ const mensajeDeEnvio = (error: unknown) => {
 
 function UnificarPap() {
   const location = useLocation()
+  const dispatch = useDispatch<AppDispatch>()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
+  const clavePapeleria = useSelector((state: RootState) => state.clavePapeleria)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
   const [documentoBytes, setDocumentoBytes] = useState<Uint8Array | null>(null)
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
@@ -98,9 +116,24 @@ function UnificarPap() {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
   const [cargandoPapeleriaDelEnlace, setCargandoPapeleriaDelEnlace] = useState(false)
+  const [papeleriaEliminada, setPapeleriaEliminada] = useState(false)
+  const [eliminacionPendiente, setEliminacionPendiente] = useState(false)
   const parametrosDelEnlace = new URLSearchParams(location.hash.slice(1))
   const codigoDelEnlace = parametrosDelEnlace.get('codigo')
+  const codigoEnlaceValido = codigoDelEnlace && DOCUMENT_KEY_PATTERN.test(codigoDelEnlace)
+    ? codigoDelEnlace
+    : null
+  const clavePapeleriaActiva = clavePapeleria === codigoEnlaceValido ? clavePapeleria : null
   const vencimientoDelEnlace = Number(parametrosDelEnlace.get('vence'))
+
+  useEffect(() => {
+    if (codigoEnlaceValido) {
+      dispatch(guardarClavePapeleria(codigoEnlaceValido))
+      return
+    }
+
+    dispatch(limpiarClavePapeleria())
+  }, [codigoEnlaceValido, dispatch])
 
   useEffect(() => {
     return () => {
@@ -122,6 +155,8 @@ function UnificarPap() {
     setDniDorso(null)
     setComprobanteCbu(null)
     setEnvioCompleto(false)
+    setPapeleriaEliminada(false)
+    setEliminacionPendiente(false)
     setMostrarConfirmacion(false)
     setMostrarEnvio(false)
   }
@@ -135,11 +170,18 @@ function UnificarPap() {
   }
 
   useEffect(() => {
-    if (!codigoDelEnlace) {
+    if (!codigoEnlaceValido) {
+      if (codigoDelEnlace) {
+        setMensaje('Link expirado')
+      }
       return
     }
 
-    if (!DOCUMENT_KEY_PATTERN.test(codigoDelEnlace) || !Number.isFinite(vencimientoDelEnlace)) {
+    if (!clavePapeleriaActiva) {
+      return
+    }
+
+    if (!Number.isFinite(vencimientoDelEnlace)) {
       setMensaje('Link expirado')
       return
     }
@@ -155,14 +197,14 @@ function UnificarPap() {
         const horaActual = await obtenerHoraUtc(controlador.signal)
         if (horaActual >= vencimientoDelEnlace) {
           setMensaje('Link expirado')
-          void eliminarPapeleriaVencida(codigoDelEnlace, controlador.signal).catch(() => undefined)
+          void eliminarPapeleriaVencida(clavePapeleriaActiva, controlador.signal).catch(() => undefined)
           return
         }
 
         setMensaje('Recuperando la papelería desde el enlace...')
 
         const respuesta = await fetch('/api/pdf/download-url', {
-          headers: { Authorization: `Bearer ${codigoDelEnlace}` },
+          headers: { Authorization: `Bearer ${clavePapeleriaActiva}` },
           signal: controlador.signal,
         })
 
@@ -205,7 +247,7 @@ function UnificarPap() {
     void recuperarPdf()
 
     return () => controlador.abort()
-  }, [codigoDelEnlace, vencimientoDelEnlace])
+  }, [clavePapeleriaActiva, codigoDelEnlace, codigoEnlaceValido, vencimientoDelEnlace])
 
   const unificar = async () => {
     if (procesandoPdf) {
@@ -261,6 +303,8 @@ function UnificarPap() {
       setEnviando(true)
       setEnvioCompleto(false)
       setMostrarConfirmacion(false)
+      setPapeleriaEliminada(false)
+      setEliminacionPendiente(false)
       setMensaje('Enviando papeleria...')
       setTroubleshooting('')
 
@@ -298,6 +342,16 @@ function UnificarPap() {
       })
 
       validarRespuestaFormSubmit(respuesta)
+      if (clavePapeleriaActiva) {
+        try {
+          await eliminarPapeleriaTrasEnvio(clavePapeleriaActiva)
+          dispatch(limpiarClavePapeleria())
+          setPapeleriaEliminada(true)
+        } catch (error) {
+          setEliminacionPendiente(true)
+          setTroubleshooting(describirError(error))
+        }
+      }
       setMensaje('')
       setEnvioCompleto(true)
       setMostrarConfirmacion(true)
@@ -533,6 +587,8 @@ function UnificarPap() {
                 <div className="modal-body p-4">
                   <h2 className="h4 mb-3">Envío confirmado</h2>
                   <p className="fs-5 mb-4">Las firmas, el CBU y el DNI se han enviado correctamente.</p>
+                  {papeleriaEliminada && <p className="text-success">La papelería privada fue eliminada de AWS.</p>}
+                  {eliminacionPendiente && <p className="text-warning">El correo fue enviado, pero no se pudo eliminar la papelería privada.</p>}
                   <Link to="/" className="btn btn-primary btn-lg w-100">
                     Volver al inicio
                   </Link>

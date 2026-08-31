@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
-import { guardarFirma, limpiarFirma } from '../../REDUX/reducer'
+import { guardarClavePapeleria, guardarFirma, limpiarClavePapeleria, limpiarFirma } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
 import './FirmaDigital.css'
+
+const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
 
 function FirmaDigital() {
   const signatureRef = useRef<SignatureCanvas | null>(null)
@@ -12,6 +14,17 @@ function FirmaDigital() {
   const location = useLocation()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
   const [disabled, setDisabled] = useState(!firmaPng)
+
+  useEffect(() => {
+    const codigoDelEnlace = new URLSearchParams(location.hash.slice(1)).get('codigo')
+
+    if (codigoDelEnlace && DOCUMENT_KEY_PATTERN.test(codigoDelEnlace)) {
+      dispatch(guardarClavePapeleria(codigoDelEnlace))
+      return
+    }
+
+    dispatch(limpiarClavePapeleria())
+  }, [dispatch, location.hash])
 
   useEffect(() => {
     if (firmaPng) {

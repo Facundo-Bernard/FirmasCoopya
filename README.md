@@ -28,9 +28,9 @@ Estas rutas se ejecutan en Vercel y no exponen las credenciales de AWS al navega
 | --- | --- | --- |
 | `/api/pdf/upload-request` | `POST` | Prepara una carga temporal y firmada hacia S3. |
 | `/api/pdf/download-url` | `GET` | Obtiene una URL de descarga temporal para la papelería asociada al link. |
-| `/api/pdf/delete` | `POST` | Elimina de S3 una papelería cuyo link ya venció. |
+| `/api/pdf/delete` | `POST` | Elimina de S3 una papelería cuyo link ya venció o cuyo envío por correo ya fue confirmado. |
 
-Los links duran 30 minutos. Los PDF nuevos guardan su vencimiento en el almacenamiento privado; luego de vencer no se pueden recuperar y el sistema intenta eliminarlos de S3.
+Los links duran 30 minutos. Los PDF nuevos guardan su vencimiento en el almacenamiento privado; luego de vencer no se pueden recuperar y el sistema intenta eliminarlos de S3. Cuando FormSubmit confirma el envío final por correo, también se elimina inmediatamente la copia privada asociada al link.
 
 ## Envío de correo
 

@@ -17,6 +17,7 @@ export default async function handler(request, response) {
 
   const authorization = request.headers.authorization
   const match = typeof authorization === 'string' ? /^Bearer ([A-Za-z0-9_-]{43})$/.exec(authorization) : null
+  const deleteAfterEmailConfirmation = request.body?.reason === 'email-confirmed'
 
   if (!match || !DOCUMENT_KEY_PATTERN.test(match[1])) {
     response.setHeader('WWW-Authenticate', 'Bearer')
@@ -32,7 +33,8 @@ export default async function handler(request, response) {
       const object = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }))
       const expiresAt = Number(object.Metadata?.['expires-at'])
 
-      if (!Number.isSafeInteger(expiresAt) || Date.now() < expiresAt) {
+      const documentExpired = Number.isSafeInteger(expiresAt) && Date.now() >= expiresAt
+      if (!documentExpired && !deleteAfterEmailConfirmation) {
         return responder(response, 403, { error: 'Document has not expired.' })
       }
     } catch (error) {
@@ -45,10 +47,10 @@ export default async function handler(request, response) {
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
     return responder(response, 200, { deleted: true })
   } catch (error) {
-    console.error('Could not delete expired S3 document.', {
+    console.error('Could not delete S3 document.', {
       name: error instanceof Error ? error.name : 'UnknownError',
       message: error instanceof Error ? error.message : 'Unknown error',
     })
-    return responder(response, 500, { error: 'Could not delete expired document.' })
+    return responder(response, 500, { error: 'Could not delete document.' })
   }
 }
