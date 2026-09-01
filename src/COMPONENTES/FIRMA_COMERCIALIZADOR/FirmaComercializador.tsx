@@ -12,6 +12,7 @@ import '../FIRMA_DIGITAL/FirmaDigital.css'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
 const DURACION_ENLACE_MS = 30 * 60 * 1000
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type UploadRequestResponse = {
   upload: {
@@ -266,6 +267,8 @@ function FirmaComercializador() {
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
   const [planId, setPlanId] = useState<PlanId | null>(null)
   const [datosComercializador, setDatosComercializador] = useState<DatosComercializador>(DATOS_INICIALES)
+  const [nombreDelComercializador, setNombreDelComercializador] = useState('')
+  const [correoDelComercializador, setCorreoDelComercializador] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [enviandoPapeleria, setEnviandoPapeleria] = useState(false)
@@ -346,6 +349,16 @@ function FirmaComercializador() {
     }))
     reiniciarDocumentoFirmado()
     setMensaje('')
+  }
+
+  const actualizarNombreDelComercializador = (event: ChangeEvent<HTMLInputElement>) => {
+    setNombreDelComercializador(event.target.value)
+    setEnlace('')
+  }
+
+  const actualizarCorreoDelComercializador = (event: ChangeEvent<HTMLInputElement>) => {
+    setCorreoDelComercializador(event.target.value)
+    setEnlace('')
   }
 
   const colocarFirma = async (event: FormEvent<HTMLFormElement>) => {
@@ -438,6 +451,13 @@ function FirmaComercializador() {
       return
     }
 
+    const nombreComercializador = nombreDelComercializador.trim()
+    const correoComercializador = correoDelComercializador.trim()
+    if (!nombreComercializador || !EMAIL_PATTERN.test(correoComercializador)) {
+      setMensaje('Ingresá el nombre y un correo válido del comercializador para generar el link.')
+      return
+    }
+
     try {
       setEnviandoPapeleria(true)
       setProgreso(0)
@@ -455,6 +475,8 @@ function FirmaComercializador() {
           size: documentoFirmado.size,
           documentKey: codigo,
           expiresAt: vence,
+          commercializerName: nombreComercializador,
+          commercializerEmail: correoComercializador,
         }),
       })
 
@@ -473,8 +495,8 @@ function FirmaComercializador() {
       setEnlace(crearEnlaceConCodigo(
         codigo,
         vence,
-        datosComercializador.nombreApellido.trim(),
-        datosComercializador.correo.trim(),
+        nombreComercializador,
+        correoComercializador,
       ))
       setMensaje('La papelería firmada fue enviada correctamente.')
     } catch (error) {
@@ -615,6 +637,36 @@ function FirmaComercializador() {
             {documentoUrl && (
               <>
                 <div className="d-flex flex-wrap gap-2 mb-3">
+                  <div className="border rounded bg-body-tertiary p-3 w-100">
+                    <h2 className="h5 mb-2">Datos del comercializador para el link</h2>
+                    <p className="text-secondary mb-3">Se guardarán con la papelería privada y se incluirán en el correo final.</p>
+                    <div className="row g-3">
+                      <div className="col-md-6">
+                        <label htmlFor="nombre-comercializador-link" className="form-label fw-semibold">Nombre del comercializador</label>
+                        <input
+                          id="nombre-comercializador-link"
+                          type="text"
+                          autoComplete="name"
+                          className="form-control"
+                          value={nombreDelComercializador}
+                          onChange={actualizarNombreDelComercializador}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label htmlFor="correo-comercializador-link" className="form-label fw-semibold">Correo del comercializador</label>
+                        <input
+                          id="correo-comercializador-link"
+                          type="email"
+                          autoComplete="email"
+                          className="form-control"
+                          value={correoDelComercializador}
+                          onChange={actualizarCorreoDelComercializador}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <a href={documentoUrl} download={nombreDescarga} className="btn btn-outline-primary btn-lg">
                     Descargar PDF firmado
                   </a>
@@ -622,7 +674,7 @@ function FirmaComercializador() {
                     type="button"
                     className="btn btn-primary btn-lg"
                     onClick={() => void enviarPapeleriaFirmada()}
-                    disabled={enviandoPapeleria}
+                    disabled={enviandoPapeleria || !nombreDelComercializador.trim() || !EMAIL_PATTERN.test(correoDelComercializador.trim())}
                     aria-busy={enviandoPapeleria}
                   >
                     {enviandoPapeleria && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}

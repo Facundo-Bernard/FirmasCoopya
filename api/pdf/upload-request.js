@@ -5,6 +5,9 @@ import { createHash } from 'node:crypto'
 const MAX_PDF_BYTES = Number(process.env.MAX_PDF_BYTES ?? 20 * 1024 * 1024)
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const LINK_DURATION_MS = 30 * 60 * 1000
+const MAX_COMMERCIALIZER_NAME_LENGTH = 120
+const MAX_COMMERCIALIZER_EMAIL_LENGTH = 254
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const responder = (response, status, body) => {
   response.setHeader('Cache-Control', 'no-store')
@@ -35,7 +38,10 @@ export default async function handler(request, response) {
     return responder(response, 405, { error: 'Method not allowed.' })
   }
 
-  const { fileName, contentType, size, documentKey, expiresAt } = request.body ?? {}
+  const { fileName, contentType, size, documentKey, expiresAt, commercializerName, commercializerEmail } = request.body ?? {}
+  const nombreComercializador = typeof commercializerName === 'string' ? commercializerName.trim() : ''
+  const correoComercializador = typeof commercializerEmail === 'string' ? commercializerEmail.trim() : ''
+  const incluyeDatosComercializador = commercializerName !== undefined || commercializerEmail !== undefined
   const now = Date.now()
   const esArchivoValido =
     typeof fileName === 'string' &&
@@ -48,12 +54,21 @@ export default async function handler(request, response) {
     Number.isSafeInteger(expiresAt) &&
     expiresAt > now &&
     expiresAt <= now + LINK_DURATION_MS + 60_000
+  const sonDatosComercializadorValidos =
+    !incluyeDatosComercializador || (
+      nombreComercializador.length > 0 &&
+      nombreComercializador.length <= MAX_COMMERCIALIZER_NAME_LENGTH &&
+      correoComercializador.length > 0 &&
+      correoComercializador.length <= MAX_COMMERCIALIZER_EMAIL_LENGTH &&
+      EMAIL_PATTERN.test(correoComercializador)
+    )
 
   if (
     !esArchivoValido ||
     typeof documentKey !== 'string' ||
     !DOCUMENT_KEY_PATTERN.test(documentKey) ||
-    !esVencimientoValido
+    !esVencimientoValido ||
+    !sonDatosComercializadorValidos
   ) {
     return responder(response, 400, { error: 'Invalid upload request.' })
   }
@@ -62,19 +77,31 @@ export default async function handler(request, response) {
     const { bucket, client } = awsConfig()
     const documentHash = createHash('sha256').update(documentKey).digest('hex')
     const objectKey = `pdf/${documentHash}.pdf`
+    const fields = {
+      'Content-Type': 'application/pdf',
+      'x-amz-meta-expires-at': String(expiresAt),
+    }
+    const conditions = [
+      ['eq', '$Content-Type', 'application/pdf'],
+      ['eq', '$x-amz-meta-expires-at', String(expiresAt)],
+      ['content-length-range', 1, MAX_PDF_BYTES],
+    ]
+
+    if (incluyeDatosComercializador) {
+      fields['x-amz-meta-comercializador-nombre'] = nombreComercializador
+      fields['x-amz-meta-comercializador-correo'] = correoComercializador
+      conditions.push(
+        ['eq', '$x-amz-meta-comercializador-nombre', nombreComercializador],
+        ['eq', '$x-amz-meta-comercializador-correo', correoComercializador],
+      )
+    }
+
     const upload = await createPresignedPost(client, {
       Bucket: bucket,
       Key: objectKey,
       Expires: 300,
-      Fields: {
-        'Content-Type': 'application/pdf',
-        'x-amz-meta-expires-at': String(expiresAt),
-      },
-      Conditions: [
-        ['eq', '$Content-Type', 'application/pdf'],
-        ['eq', '$x-amz-meta-expires-at', String(expiresAt)],
-        ['content-length-range', 1, MAX_PDF_BYTES],
-      ],
+      Fields: fields,
+      Conditions: conditions,
     })
 
     return responder(response, 200, { upload, expiresIn: 300 })
