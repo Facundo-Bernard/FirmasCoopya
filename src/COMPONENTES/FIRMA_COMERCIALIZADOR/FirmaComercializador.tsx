@@ -41,11 +41,18 @@ const generarCodigoPdf = () => {
   return btoa(texto).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-const crearEnlaceConCodigo = (codigo: string, vence: number) => {
+const crearEnlaceConCodigo = (
+  codigo: string,
+  vence: number,
+  nombreComercializador: string,
+  correoComercializador: string,
+) => {
   const enlace = new URL('/firma-digital', window.location.origin)
   enlace.hash = new URLSearchParams({
     codigo,
     vence: String(vence),
+    comercializador_nombre: nombreComercializador,
+    comercializador_correo: correoComercializador,
   }).toString()
   return enlace.toString()
 }
@@ -463,7 +470,12 @@ function FirmaComercializador() {
 
       setMensaje('Enviando la papelería firmada al almacenamiento seguro...')
       await subirDirectamenteAS3(documentoFirmado, solicitud.upload, setProgreso)
-      setEnlace(crearEnlaceConCodigo(codigo, vence))
+      setEnlace(crearEnlaceConCodigo(
+        codigo,
+        vence,
+        datosComercializador.nombreApellido.trim(),
+        datosComercializador.correo.trim(),
+      ))
       setMensaje('La papelería firmada fue enviada correctamente.')
     } catch (error) {
       const detalle = error instanceof Error ? ` ${error.message}` : ''

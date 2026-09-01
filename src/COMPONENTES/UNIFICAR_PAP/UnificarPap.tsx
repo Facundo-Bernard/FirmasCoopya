@@ -120,6 +120,8 @@ function UnificarPap() {
   const [eliminacionPendiente, setEliminacionPendiente] = useState(false)
   const parametrosDelEnlace = new URLSearchParams(location.hash.slice(1))
   const codigoDelEnlace = parametrosDelEnlace.get('codigo')
+  const nombreComercializador = parametrosDelEnlace.get('comercializador_nombre')?.trim() ?? ''
+  const correoComercializador = parametrosDelEnlace.get('comercializador_correo')?.trim() ?? ''
   const codigoEnlaceValido = codigoDelEnlace && DOCUMENT_KEY_PATTERN.test(codigoDelEnlace)
     ? codigoDelEnlace
     : null
@@ -327,6 +329,10 @@ function UnificarPap() {
       datos.append('DNI', dniLimpio)
       datos.append('email', email)
       datos.append('Email informado', email)
+      if (nombreComercializador && correoComercializador) {
+        datos.append('Nombre del comercializador', nombreComercializador)
+        datos.append('Correo del comercializador', correoComercializador)
+      }
       datos.append('_subject', asunto)
       datos.append('_template', 'table')
       datos.append('_captcha', 'false')
