@@ -350,12 +350,29 @@ export async function firmarPdf(
 ): Promise<ResultadoFirma> {
   const pdfjsLib = await cargarPdfJs()
   const bytesPdf = new Uint8Array(pdf)
-  let visorPdf
+  let cargaPdf
+  const textosPorPagina: ItemTextoPdf[][] = []
 
   try {
-    visorPdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) }).promise
+    cargaPdf = pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) })
+    const visorPdf = await cargaPdf.promise
+
+    for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
+      const pagina = await visorPdf.getPage(indice + 1)
+      const contenido = await pagina.getTextContent()
+      const items = contenido.items.flatMap<ItemTextoPdf>((item) => (
+        'str' in item
+          ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }]
+          : []
+      ))
+
+      textosPorPagina.push(items)
+    }
   } catch (error) {
     throw new Error(`PDF.js no pudo leer el archivo: ${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    // Libera PDF.js antes de abrir el mismo PDF con pdf-lib para reducir el pico de memoria en móviles.
+    await cargaPdf?.destroy().catch(() => undefined)
   }
 
   let documento: PDFDocument
@@ -377,19 +394,10 @@ export async function firmarPdf(
   }
 
   const paginasPdf = documento.getPages()
-  const paginasTexto: PaginaTextoPdf[] = []
-
-  for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
-    const pagina = await visorPdf.getPage(indice + 1)
-    const contenido = await pagina.getTextContent()
-    const items = contenido.items.flatMap<ItemTextoPdf>((item) => (
-      'str' in item
-        ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }]
-        : []
-    ))
-
-    paginasTexto.push({ pagina: paginasPdf[indice], items })
-  }
+  const paginasTexto: PaginaTextoPdf[] = textosPorPagina.map((items, indice) => ({
+    pagina: paginasPdf[indice],
+    items,
+  }))
 
   const coincidenciasFirma = buscarCoincidencias(paginasTexto, palabraClave)
   const esFirmaComercializador = palabraClave.toLowerCase() === PALABRA_CLAVE_COMERCIALIZADOR

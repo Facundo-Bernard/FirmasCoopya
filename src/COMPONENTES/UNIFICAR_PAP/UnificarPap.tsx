@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
@@ -118,6 +118,7 @@ function UnificarPap() {
   const [cargandoPapeleriaDelEnlace, setCargandoPapeleriaDelEnlace] = useState(false)
   const [papeleriaEliminada, setPapeleriaEliminada] = useState(false)
   const [eliminacionPendiente, setEliminacionPendiente] = useState(false)
+  const procesandoPdfRef = useRef(false)
   const parametrosDelEnlace = new URLSearchParams(location.hash.slice(1))
   const codigoDelEnlace = parametrosDelEnlace.get('codigo')
   const nombreComercializador = parametrosDelEnlace.get('comercializador_nombre')?.trim() ?? ''
@@ -252,7 +253,7 @@ function UnificarPap() {
   }, [clavePapeleriaActiva, codigoDelEnlace, codigoEnlaceValido, vencimientoDelEnlace])
 
   const unificar = async () => {
-    if (procesandoPdf) {
+    if (procesandoPdf || procesandoPdfRef.current) {
       return
     }
 
@@ -263,10 +264,11 @@ function UnificarPap() {
     }
 
     try {
+      procesandoPdfRef.current = true
       setProcesandoPdf(true)
       setTroubleshooting('')
       const resultado = await firmarPdf(await archivoPdf.arrayBuffer(), firmaPng)
-      const bytes = resultado.bytes.slice()
+      const bytes = resultado.bytes
       const url = URL.createObjectURL(new Blob([copiarArrayBuffer(bytes)], { type: 'application/pdf' }))
 
       setDocumentoBytes(bytes)
@@ -280,6 +282,7 @@ function UnificarPap() {
       setMensaje('No se pudo procesar el PDF.')
       setTroubleshooting(describirError(error))
     } finally {
+      procesandoPdfRef.current = false
       setProcesandoPdf(false)
     }
   }
