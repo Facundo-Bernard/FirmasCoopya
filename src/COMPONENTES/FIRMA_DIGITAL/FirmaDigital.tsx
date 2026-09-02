@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { guardarClavePapeleria, guardarFirma, limpiarClavePapeleria, limpiarFirma } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
+import { recortarFirma } from '../../SERVICIOS/recortarFirma'
 import './FirmaDigital.css'
 
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
@@ -46,7 +47,10 @@ function FirmaDigital() {
       return null
     }
 
-    const firma = signaturePad.getCanvas().toDataURL('image/png')
+    const firma = recortarFirma(signaturePad.getCanvas())
+    if (!firma) {
+      return null
+    }
 
     dispatch(guardarFirma(firma))
 

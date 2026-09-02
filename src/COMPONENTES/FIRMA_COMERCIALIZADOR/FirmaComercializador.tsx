@@ -8,6 +8,7 @@ import {
   type CampoTextoPdf,
   type OpcionMarcadorPlanPdf,
 } from '../../SERVICIOS/firmarPdf'
+import { recortarFirma } from '../../SERVICIOS/recortarFirma'
 import '../FIRMA_DIGITAL/FirmaDigital.css'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
@@ -300,10 +301,11 @@ function FirmaComercializador() {
 
   const guardarFirma = () => {
     const signaturePad = signatureRef.current
+    const firma = signaturePad && !signaturePad.isEmpty()
+      ? recortarFirma(signaturePad.getCanvas())
+      : null
 
-    setFirmaPng(signaturePad && !signaturePad.isEmpty()
-      ? signaturePad.getCanvas().toDataURL('image/png')
-      : null)
+    setFirmaPng(firma)
     reiniciarDocumentoFirmado()
     setMensaje('')
   }
