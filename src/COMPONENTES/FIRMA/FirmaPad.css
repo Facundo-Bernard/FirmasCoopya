@@ -1,9 +1,9 @@
 .firma-pad {
-  width: min(100%, 920px);
+  width: min(100%, 720px);
 }
 
 .firma-canvas {
-  height: 560px;
+  height: 280px;
 }
 
 @media (max-width: 575.98px) {
@@ -12,6 +12,6 @@
   }
 
   .firma-canvas {
-    height: 440px;
+    height: 220px;
   }
 }

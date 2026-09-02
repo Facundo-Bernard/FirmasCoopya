@@ -1,20 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
-import SignatureCanvas from 'react-signature-canvas'
 import { guardarClavePapeleria, guardarFirma, limpiarClavePapeleria, limpiarFirma } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
-import { recortarFirma } from '../../SERVICIOS/recortarFirma'
-import './FirmaDigital.css'
+import FirmaPad from '../FIRMA/FirmaPad'
 
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
 
 function FirmaDigital() {
-  const signatureRef = useRef<SignatureCanvas | null>(null)
   const dispatch = useDispatch<AppDispatch>()
   const location = useLocation()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
-  const [disabled, setDisabled] = useState(!firmaPng)
 
   useEffect(() => {
     const codigoDelEnlace = new URLSearchParams(location.hash.slice(1)).get('codigo')
@@ -27,34 +23,9 @@ function FirmaDigital() {
     dispatch(limpiarClavePapeleria())
   }, [dispatch, location.hash])
 
-  useEffect(() => {
-    if (firmaPng) {
-      signatureRef.current?.fromDataURL(firmaPng)
-    }
-
-    setDisabled(!firmaPng)
-  }, [firmaPng])
-
-  const borrarFirma = () => {
-    signatureRef.current?.clear()
-    dispatch(limpiarFirma())
-  }
-
-  const guardarFirmaActual = () => {
-    const signaturePad = signatureRef.current
-
-    if (!signaturePad || signaturePad.isEmpty()) {
-      return null
-    }
-
-    const firma = recortarFirma(signaturePad.getCanvas())
-    if (!firma) {
-      return null
-    }
-
-    dispatch(guardarFirma(firma))
-
-    return firma
+  const actualizarFirma = (firma: string | null) => {
+    // Redux conserva la firma para el siguiente paso, sin volver a pintarla sobre el canvas.
+    dispatch(firma ? guardarFirma(firma) : limpiarFirma())
   }
 
   const descargarFirma = () => {
@@ -78,32 +49,20 @@ function FirmaDigital() {
         <h1 className="fw-bold text-primary mb-2">Firma Electrónica</h1>
         <p className="fs-5 mb-2">Dibuja con el dedo debajo</p>
 
-        <div className="firma-pad border rounded-4 bg-light overflow-hidden mb-3 mx-auto">
-          <SignatureCanvas
-            ref={signatureRef}
-            penColor="#000000"
-            onEnd={guardarFirmaActual}
-            canvasProps={{
-              className: 'firma-canvas d-block w-100',
-              style: { touchAction: 'none' },
-            }}
-          />
-        </div>
+        <div className="mb-4">
+          <FirmaPad firma={firmaPng} onChange={actualizarFirma} etiquetaLimpiar="Limpiar" />
 
-        <div className="d-flex flex-wrap gap-2 mb-4">
-          <button type="button" className="btn btn-outline-primary" onClick={borrarFirma}>
-            Limpiar
-          </button>
-
-          {!disabled ? (
-            <Link to={`/unificarpap${location.hash}`} className="btn btn-primary">
-              Siguiente
-            </Link>
-          ) : (
-            <button type="button" className="btn btn-primary" disabled>
-              Siguiente
-            </button>
-          )}
+          <div className="d-flex flex-wrap gap-2 mt-3">
+            {firmaPng ? (
+              <Link to={`/unificarpap${location.hash}`} className="btn btn-primary">
+                Siguiente
+              </Link>
+            ) : (
+              <button type="button" className="btn btn-primary" disabled>
+                Siguiente
+              </button>
+            )}
+          </div>
         </div>
 
         {firmaPng && (

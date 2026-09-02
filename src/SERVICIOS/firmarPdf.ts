@@ -28,9 +28,10 @@ export type OpcionMarcadorPlanPdf = {
   desplazamientoY?: number
 }
 
-const ANCHO_FIRMA = 140
-const ALTO_FIRMA = 140
-const ALTO_FIRMA_COMERCIALIZADOR = 60
+const ANCHO_MAXIMO_FIRMA = 120
+const ALTO_MAXIMO_FIRMA = 48
+const ANCHO_MAXIMO_FIRMA_COMERCIALIZADOR = 120
+const ALTO_MAXIMO_FIRMA_COMERCIALIZADOR = 44
 const GROSOR_TILDE_PLAN = 2.5
 
 type ResultadoFirma = {
@@ -55,6 +56,11 @@ type PaginaTextoPdf = {
 type CoincidenciaTextoPdf = {
   pagina: PDFPage
   item: ItemTextoPdf
+}
+
+type ImagenFirma = {
+  width: number
+  height: number
 }
 
 type PromiseConCompatibilidad = typeof Promise & {
@@ -341,6 +347,22 @@ const dibujarPlanEnTexto = (
   return 0
 }
 
+const calcularDimensionesFirma = (firma: ImagenFirma, esFirmaComercializador: boolean) => {
+  const anchoMaximo = esFirmaComercializador
+    ? ANCHO_MAXIMO_FIRMA_COMERCIALIZADOR
+    : ANCHO_MAXIMO_FIRMA
+  const altoMaximo = esFirmaComercializador
+    ? ALTO_MAXIMO_FIRMA_COMERCIALIZADOR
+    : ALTO_MAXIMO_FIRMA
+  const escala = Math.min(anchoMaximo / firma.width, altoMaximo / firma.height)
+
+  // La firma recortada puede ser horizontal o vertical; se adapta sin deformarla ni ocupar todo el recuadro.
+  return {
+    width: firma.width * escala,
+    height: firma.height * escala,
+  }
+}
+
 export async function firmarPdf(
   pdf: ArrayBuffer,
   firmaPng: string,
@@ -401,16 +423,17 @@ export async function firmarPdf(
 
   const coincidenciasFirma = buscarCoincidencias(paginasTexto, palabraClave)
   const esFirmaComercializador = palabraClave.toLowerCase() === PALABRA_CLAVE_COMERCIALIZADOR
-  const altoFirma = esFirmaComercializador ? ALTO_FIRMA_COMERCIALIZADOR : ALTO_FIRMA
-  const desplazamientoFirmaY = esFirmaComercializador ? 30 : ALTO_FIRMA - 80
+  const dimensionesFirma = calcularDimensionesFirma(firma, esFirmaComercializador)
+  // Conserva el centro visual usado antes, pero con una firma más pequeña y proporcional.
+  const centroFirmaY = esFirmaComercializador ? 0 : 10
 
   for (const { pagina, item } of coincidenciasFirma) {
     const [, , , , posicionX, posicionY] = item.transform
     pagina.drawImage(firma, {
       x: Math.max(0, posicionX - 4),
-      y: Math.max(0, posicionY - desplazamientoFirmaY),
-      width: ANCHO_FIRMA,
-      height: altoFirma,
+      y: Math.max(0, posicionY + centroFirmaY - dimensionesFirma.height / 2),
+      width: dimensionesFirma.width,
+      height: dimensionesFirma.height,
     })
   }
 

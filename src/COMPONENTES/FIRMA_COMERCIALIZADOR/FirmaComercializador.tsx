@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import SignatureCanvas from 'react-signature-canvas'
 import {
   firmarPdf,
   PALABRA_CLAVE_COMERCIALIZADOR,
   type CampoTextoPdf,
   type OpcionMarcadorPlanPdf,
 } from '../../SERVICIOS/firmarPdf'
-import { recortarFirma } from '../../SERVICIOS/recortarFirma'
-import '../FIRMA_DIGITAL/FirmaDigital.css'
+import FirmaPad from '../FIRMA/FirmaPad'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
 const DURACION_ENLACE_MS = 30 * 60 * 1000
@@ -260,7 +258,6 @@ const formatearFecha = (fecha: string) => new Intl.DateTimeFormat('es-AR', {
 }).format(new Date(`${fecha}T12:00:00`))
 
 function FirmaComercializador() {
-  const signatureRef = useRef<SignatureCanvas | null>(null)
   const [firmaPng, setFirmaPng] = useState<string | null>(null)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
   const [documentoFirmado, setDocumentoFirmado] = useState<File | null>(null)
@@ -299,20 +296,8 @@ function FirmaComercializador() {
     }
   }, [archivoUrl])
 
-  const guardarFirma = () => {
-    const signaturePad = signatureRef.current
-    const firma = signaturePad && !signaturePad.isEmpty()
-      ? recortarFirma(signaturePad.getCanvas())
-      : null
-
+  const actualizarFirma = (firma: string | null) => {
     setFirmaPng(firma)
-    reiniciarDocumentoFirmado()
-    setMensaje('')
-  }
-
-  const limpiarFirma = () => {
-    signatureRef.current?.clear()
-    setFirmaPng(null)
     reiniciarDocumentoFirmado()
     setMensaje('')
   }
@@ -543,21 +528,7 @@ function FirmaComercializador() {
         <form onSubmit={colocarFirma}>
         <section className="border rounded p-3 p-md-4 mb-4">
           <h2 className="h4 mb-2">1. Dibuja tu firma</h2>
-          <div className="firma-pad border rounded-4 bg-light overflow-hidden mb-3 mx-auto">
-            <SignatureCanvas
-              ref={signatureRef}
-              penColor="#000000"
-              onEnd={guardarFirma}
-              canvasProps={{
-                className: 'firma-canvas d-block w-100',
-                style: { touchAction: 'none' },
-              }}
-            />
-          </div>
-
-          <button type="button" className="btn btn-outline-primary" onClick={limpiarFirma}>
-            Limpiar firma
-          </button>
+          <FirmaPad firma={firmaPng} onChange={actualizarFirma} />
         </section>
 
         <section className="border rounded p-3 p-md-4 mb-4">

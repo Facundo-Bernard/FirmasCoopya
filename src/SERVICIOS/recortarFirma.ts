@@ -12,6 +12,7 @@ export const recortarFirma = (canvasOriginal: HTMLCanvasElement): string | null 
   let maximoX = -1
   let maximoY = -1
 
+  // Detecta únicamente tinta visible: se puede firmar en cualquier punto del lienzo sin arrastrar espacio vacío al PDF.
   for (let y = 0; y < canvasOriginal.height; y += 1) {
     for (let x = 0; x < canvasOriginal.width; x += 1) {
       const indice = (y * canvasOriginal.width + x) * 4
@@ -36,6 +37,7 @@ export const recortarFirma = (canvasOriginal: HTMLCanvasElement): string | null 
     return null
   }
 
+  // Deja un pequeño margen para que un trazo junto al borde no quede cortado.
   const margen = Math.max(MARGEN_MINIMO, Math.round(Math.min(canvasOriginal.width, canvasOriginal.height) * 0.04))
   const origenX = Math.max(0, minimoX - margen)
   const origenY = Math.max(0, minimoY - margen)
