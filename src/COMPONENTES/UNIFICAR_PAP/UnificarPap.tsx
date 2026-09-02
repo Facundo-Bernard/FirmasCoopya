@@ -252,7 +252,10 @@ function UnificarPap() {
     return () => controlador.abort()
   }, [clavePapeleriaActiva, codigoDelEnlace, codigoEnlaceValido, vencimientoDelEnlace])
 
-  const unificar = async () => {
+  const unificar = async (event: FormEvent<HTMLFormElement>) => {
+    // Mantiene el mismo contrato que la firma del comercializador y bloquea el submit nativo en móviles.
+    event.preventDefault()
+
     if (procesandoPdf || procesandoPdfRef.current) {
       return
     }
@@ -404,11 +407,10 @@ function UnificarPap() {
           )}
         </div>
 
-        <div className="d-flex flex-wrap gap-2 mb-3">
+        <form className="d-flex flex-wrap gap-2 mb-3" onSubmit={unificar}>
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary"
-            onClick={unificar}
             disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
             aria-busy={procesandoPdf}
           >
@@ -424,7 +426,7 @@ function UnificarPap() {
           >
             Siguiente
           </button>
-        </div>
+        </form>
 
         {mostrarEnvio && documentoBytes && (
           <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>

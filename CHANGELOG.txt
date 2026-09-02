@@ -17,6 +17,7 @@ El proyecto utiliza versionado semántico: MAYOR.MENOR.PARCHE.
 - La firma incorporada al PDF ahora mantiene su proporción y respeta un tamaño máximo visual.
 - Área de firma ajustada para escritorio y celular, con controles de limpieza reutilizables.
 - El trazo no se borra al rotar el teléfono ni cuando el teclado móvil cambia el tamaño de la pantalla.
+- El botón de colocar firma del usuario ahora usa el mismo submit controlado que la firma del comercializador.
 
 
 [0.2.0] - PLANIFICADA
