@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation } from 'react-router-dom'
 import { guardarClavePapeleria, guardarFirma, limpiarClavePapeleria, limpiarFirma } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
-import FirmaPad from '../FIRMA/FirmaPad'
+import FirmaPad from '../COMPONENTES/FIRMA/FirmaPad'
 
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
 

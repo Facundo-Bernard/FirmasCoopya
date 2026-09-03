@@ -8,12 +8,12 @@ import {
   type CampoTextoPdf,
   type OpcionMarcadorPlanPdf,
 } from '../../SERVICIOS/firmarPdf'
-import FirmaPad from '../FIRMA/FirmaPad'
-import FormularioDatosComercializador from '../DATOS_COMERCIALIZADOR/DatosComercializador'
+import FirmaPad from '../COMPONENTES/FIRMA/FirmaPad'
+import FormularioDatosComercializador from '../COMPONENTES/DATOS_COMERCIALIZADOR/DatosComercializador'
 import {
   normalizarDatosComercializador,
   sonDatosComercializadorValidos,
-} from '../DATOS_COMERCIALIZADOR/utilidadesComercializador'
+} from '../COMPONENTES/DATOS_COMERCIALIZADOR/utilidadesComercializador'
 import type { RootState } from '../../REDUX/store'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
@@ -523,81 +523,81 @@ function FirmaComercializador() {
         <p className="fs-5 mb-4">Completa y firma la papelería. Después podrás generar un link para que la persona continúe con su firma.</p>
 
         <form onSubmit={colocarFirma}>
-        <section className="border rounded p-3 p-md-4 mb-4">
-          <h2 className="h4 mb-2">1. Dibuja tu firma</h2>
-          <FirmaPad firma={firmaPng} onChange={actualizarFirma} />
-        </section>
+          <section className="border rounded p-3 p-md-4 mb-4">
+            <h2 className="h4 mb-2">1. Dibuja tu firma</h2>
+            <FirmaPad firma={firmaPng} onChange={actualizarFirma} />
+          </section>
 
-        <section className="border rounded p-3 p-md-4 mb-4">
-          <h2 className="h4 mb-3">2. Selecciona el plan</h2>
-          <p className="text-secondary mb-3">Esta selección es obligatoria y se marcará en la papelería firmada.</p>
+          <section className="border rounded p-3 p-md-4 mb-4">
+            <h2 className="h4 mb-3">2. Selecciona el plan</h2>
+            <p className="text-secondary mb-3">Esta selección es obligatoria y se marcará en la papelería firmada.</p>
 
-          <div className="d-grid gap-2" role="radiogroup" aria-label="Plan seleccionado">
-            {PLANES.map((plan) => (
-              <label
-                key={plan.id}
-                className={`border rounded p-3 d-flex align-items-center gap-3 ${planId === plan.id ? 'border-primary bg-primary-subtle' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="plan"
-                  value={plan.id}
-                  checked={planId === plan.id}
-                  onChange={seleccionarPlan}
-                  className="form-check-input mt-0"
-                  required
-                />
-                <span className="fw-semibold">{plan.nombre}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className="border rounded p-3 p-md-4 mb-4">
-          <h2 className="h4 mb-3">3. Completa tus datos</h2>
-          <p className="text-secondary mb-3">Todos los datos son obligatorios y se incorporarán en la papelería.</p>
-
-          <div className="row g-3">
-            {CAMPOS_COMERCIALIZADOR.map((campo) => (
-              <div className="col-md-6" key={campo.clave}>
-                <label htmlFor={`comercializador-${campo.clave}`} className="form-label fw-semibold">
-                  {campo.etiqueta}
+            <div className="d-grid gap-2" role="radiogroup" aria-label="Plan seleccionado">
+              {PLANES.map((plan) => (
+                <label
+                  key={plan.id}
+                  className={`border rounded p-3 d-flex align-items-center gap-3 ${planId === plan.id ? 'border-primary bg-primary-subtle' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="plan"
+                    value={plan.id}
+                    checked={planId === plan.id}
+                    onChange={seleccionarPlan}
+                    className="form-check-input mt-0"
+                    required
+                  />
+                  <span className="fw-semibold">{plan.nombre}</span>
                 </label>
-                <input
-                  id={`comercializador-${campo.clave}`}
-                  type={campo.tipo ?? 'text'}
-                  inputMode={campo.inputMode}
-                  autoComplete={campo.autoComplete}
-                  className="form-control form-control-lg"
-                  value={datosComercializador[campo.clave]}
-                  onChange={actualizarDato(campo.clave)}
-                  required
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
 
-        <section className="border rounded p-3 p-md-4 mb-4">
-          <h2 className="h4 mb-3">4. Selecciona la papelería</h2>
-          <input
-            type="file"
-            accept="application/pdf"
-            className="form-control form-control-lg mb-3"
-            onChange={cargarPdf}
-            required
-          />
+          <section className="border rounded p-3 p-md-4 mb-4">
+            <h2 className="h4 mb-3">3. Completa tus datos</h2>
+            <p className="text-secondary mb-3">Todos los datos son obligatorios y se incorporarán en la papelería.</p>
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg"
-            disabled={!firmaPng || !archivoPdf || !planId || !datosCompletos || procesando}
-            aria-busy={procesando}
-          >
-            {procesando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
-            {procesando ? 'Colocando firma...' : 'Firmar PDF'}
-          </button>
-        </section>
+            <div className="row g-3">
+              {CAMPOS_COMERCIALIZADOR.map((campo) => (
+                <div className="col-md-6" key={campo.clave}>
+                  <label htmlFor={`comercializador-${campo.clave}`} className="form-label fw-semibold">
+                    {campo.etiqueta}
+                  </label>
+                  <input
+                    id={`comercializador-${campo.clave}`}
+                    type={campo.tipo ?? 'text'}
+                    inputMode={campo.inputMode}
+                    autoComplete={campo.autoComplete}
+                    className="form-control form-control-lg"
+                    value={datosComercializador[campo.clave]}
+                    onChange={actualizarDato(campo.clave)}
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="border rounded p-3 p-md-4 mb-4">
+            <h2 className="h4 mb-3">4. Selecciona la papelería</h2>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="form-control form-control-lg mb-3"
+              onChange={cargarPdf}
+              required
+            />
+
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg"
+              disabled={!firmaPng || !archivoPdf || !planId || !datosCompletos || procesando}
+              aria-busy={procesando}
+            >
+              {procesando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+              {procesando ? 'Colocando firma...' : 'Firmar PDF'}
+            </button>
+          </section>
         </form>
 
         {mensaje && <p className="fs-5 mb-3">{mensaje}</p>}
@@ -606,27 +606,28 @@ function FirmaComercializador() {
           <section className="mb-3">
             {documentoUrl && (
               <>
-                <div className="d-flex flex-wrap gap-2 mb-3">
+                <div className="">
                   <FormularioDatosComercializador
                     idPrefix="firma-comercializador-link"
                     datosConfirmados={Boolean(enlace)}
                     deshabilitado={enviandoPapeleria}
                     onEditar={() => setEnlace('')}
                   />
-                  <a href={documentoUrl} download={nombreDescarga} className="btn btn-outline-primary btn-lg">
-                    Descargar PDF firmado
-                  </a>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-lg"
-                    onClick={() => void enviarPapeleriaFirmada()}
-                    disabled={enviandoPapeleria || !sonDatosComercializadorValidos(datosDelComercializador)}
-                    aria-busy={enviandoPapeleria}
-                  >
-                    {enviandoPapeleria && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
-                    {enviandoPapeleria ? 'Enviando papelería...' : 'Enviar papelería y generar link'}
-                  </button>
+
                 </div>
+                <a href={documentoUrl} download={nombreDescarga} className="btn btn-outline-primary m-2 btn-lg">
+                  Descargar PDF firmado
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg"
+                  onClick={() => void enviarPapeleriaFirmada()}
+                  disabled={enviandoPapeleria || !sonDatosComercializadorValidos(datosDelComercializador)}
+                  aria-busy={enviandoPapeleria}
+                >
+                  {enviandoPapeleria && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+                  {enviandoPapeleria ? 'Enviando papelería...' : 'Enviar papelería y generar link'}
+                </button>
 
                 {enviandoPapeleria && (
                   <div className="progress mb-3" role="progressbar" aria-label="Progreso de carga" aria-valuenow={progreso} aria-valuemin={0} aria-valuemax={100}>

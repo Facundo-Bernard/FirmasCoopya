@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import Rutas from './COMPONENTES/Rutas'
+import Rutas from './PANTALLAS/Rutas'
 
 function App() {
   const evitarRecargaPorSubmit = (event: FormEvent<HTMLDivElement>) => {

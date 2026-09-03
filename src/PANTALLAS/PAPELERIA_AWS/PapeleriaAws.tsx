@@ -2,11 +2,11 @@ import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useSelector } from 'react-redux'
 import { Navigate, useLocation } from 'react-router-dom'
-import FormularioDatosComercializador from '../DATOS_COMERCIALIZADOR/DatosComercializador'
+import FormularioDatosComercializador from '../COMPONENTES/DATOS_COMERCIALIZADOR/DatosComercializador'
 import {
   normalizarDatosComercializador,
   sonDatosComercializadorValidos,
-} from '../DATOS_COMERCIALIZADOR/utilidadesComercializador'
+} from '../COMPONENTES/DATOS_COMERCIALIZADOR/utilidadesComercializador'
 import type { RootState } from '../../REDUX/store'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024

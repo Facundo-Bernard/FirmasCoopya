@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
-import { recortarFirma } from '../../SERVICIOS/recortarFirma'
+import { recortarFirma } from '../../../SERVICIOS/recortarFirma'
 import './FirmaPad.css'
 
 type FirmaPadProps = {

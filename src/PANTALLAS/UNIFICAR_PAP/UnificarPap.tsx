@@ -6,7 +6,7 @@ import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
 import { guardarClavePapeleria, limpiarClavePapeleria } from '../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../REDUX/store'
-import CapturaCamara from './CapturaCamara'
+import CapturaCamara from '../COMPONENTES/CAPTURA_CAMARA/CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
 const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`

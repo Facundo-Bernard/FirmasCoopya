@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { guardarDatosComercializador } from '../../REDUX/reducer'
-import type { AppDispatch, RootState } from '../../REDUX/store'
+import { guardarDatosComercializador } from '../../../REDUX/reducer'
+import type { AppDispatch, RootState } from '../../../REDUX/store'
 import {
   MAX_CORREO_COMERCIALIZADOR,
   MAX_NOMBRE_COMERCIALIZADOR,
