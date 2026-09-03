@@ -15,13 +15,19 @@ export const normalizarDatosComercializador = (nombre: string, correo: string): 
   correo: correo.trim(),
 })
 
+// Confirma que el correo tenga el formato requerido antes de habilitar el envío a la API.
+export const esCorreoComercializadorValido = (correo: string) => {
+  const correoNormalizado = correo.trim()
+  return correoNormalizado.length > 0 &&
+    correoNormalizado.length <= MAX_CORREO_COMERCIALIZADOR &&
+    EMAIL_PATTERN.test(correoNormalizado)
+}
+
 // Verifica los mismos límites que acepta la API antes de permitir el envío.
 export const sonDatosComercializadorValidos = ({ nombre, correo }: DatosComercializador) =>
   nombre.length > 0 &&
   nombre.length <= MAX_NOMBRE_COMERCIALIZADOR &&
-  correo.length > 0 &&
-  correo.length <= MAX_CORREO_COMERCIALIZADOR &&
-  EMAIL_PATTERN.test(correo)
+  esCorreoComercializadorValido(correo)
 
 // Recupera datos válidos del navegador y evita romper la pantalla si el almacenamiento no está disponible.
 export const recuperarDatosComercializador = (): DatosComercializador | null => {
@@ -45,5 +51,15 @@ export const persistirDatosComercializador = (datos: DatosComercializador) => {
     window.localStorage.setItem(COMMERCIALIZER_STORAGE_KEY, JSON.stringify(datos))
   } catch {
     // El trámite puede continuar si el navegador bloquea el almacenamiento local.
+  }
+}
+
+// Borra los datos actuales y la clave anterior para que Editar siempre empiece con campos vacíos.
+export const eliminarDatosComercializadorGuardados = () => {
+  try {
+    window.localStorage.removeItem(COMMERCIALIZER_STORAGE_KEY)
+    window.localStorage.removeItem(LEGACY_COMMERCIALIZER_STORAGE_KEY)
+  } catch {
+    // La edición continúa aunque el navegador no permita modificar el almacenamiento local.
   }
 }

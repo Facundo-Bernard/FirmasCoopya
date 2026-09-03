@@ -16,6 +16,7 @@ type FirmaAction =
   | { type: 'GUARDAR_CLAVE_PAPELERIA'; payload: string }
   | { type: 'LIMPIAR_CLAVE_PAPELERIA' }
   | { type: 'GUARDAR_DATOS_COMERCIALIZADOR'; payload: FirmaState['datosComercializador'] }
+  | { type: 'LIMPIAR_DATOS_COMERCIALIZADOR' }
 
 const initialState: FirmaState = {
   count: 0,
@@ -44,6 +45,9 @@ const reducer = (state = initialState, action: FirmaAction): FirmaState => {
     case 'GUARDAR_DATOS_COMERCIALIZADOR':
       // Comparte el identificador del comercializador entre las pantallas del trámite actual.
       return { ...state, datosComercializador: action.payload }
+    case 'LIMPIAR_DATOS_COMERCIALIZADOR':
+      // Evita reutilizar datos anteriores cuando el comercializador elige editarlos.
+      return { ...state, datosComercializador: { nombre: '', correo: '' } }
     default:
       return state
   }
@@ -71,6 +75,11 @@ export const limpiarClavePapeleria = (): FirmaAction => ({
 export const guardarDatosComercializador = (datos: FirmaState['datosComercializador']): FirmaAction => ({
   type: 'GUARDAR_DATOS_COMERCIALIZADOR',
   payload: datos,
+})
+
+// Vacía el identificador compartido antes de que el comercializador ingrese uno nuevo.
+export const limpiarDatosComercializador = (): FirmaAction => ({
+  type: 'LIMPIAR_DATOS_COMERCIALIZADOR',
 })
 
 export default reducer

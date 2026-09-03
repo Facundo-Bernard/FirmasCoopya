@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { guardarDatosComercializador } from '../../../REDUX/reducer'
+import { guardarDatosComercializador, limpiarDatosComercializador } from '../../../REDUX/reducer'
 import type { AppDispatch, RootState } from '../../../REDUX/store'
 import {
+  eliminarDatosComercializadorGuardados,
+  esCorreoComercializadorValido,
   MAX_CORREO_COMERCIALIZADOR,
   MAX_NOMBRE_COMERCIALIZADOR,
   normalizarDatosComercializador,
@@ -29,11 +31,12 @@ function FormularioDatosComercializador({
   const dispatch = useDispatch<AppDispatch>()
   const datosEnRedux = useSelector((state: RootState) => state.datosComercializador)
   // Lee localStorage una sola vez al montar el componente para hidratar la sesión actual.
-  const [datosGuardados] = useState(recuperarDatosComercializador)
+  const [datosGuardados, setDatosGuardados] = useState(recuperarDatosComercializador)
   const datosActuales = sonDatosComercializadorValidos(datosEnRedux)
     ? datosEnRedux
     : (datosGuardados ?? datosEnRedux)
   const [editando, setEditando] = useState(() => !sonDatosComercializadorValidos(datosActuales))
+  const correoInvalido = Boolean(datosActuales.correo.trim()) && !esCorreoComercializadorValido(datosActuales.correo)
 
   useEffect(() => {
     // Hidrata Redux con lo persistido para que las demás pantallas reciban los mismos datos.
@@ -67,6 +70,10 @@ function FormularioDatosComercializador({
 
   // Habilita cambios y permite que la pantalla anfitriona descarte un link previo.
   const habilitarEdicion = () => {
+    // Elimina la copia persistida y la compartida para que no reaparezcan datos al volver a renderizar.
+    eliminarDatosComercializadorGuardados()
+    setDatosGuardados(null)
+    dispatch(limpiarDatosComercializador())
     setEditando(true)
     onEditar?.()
   }
@@ -110,13 +117,19 @@ function FormularioDatosComercializador({
             id={`${idPrefix}-correo`}
             type="email"
             autoComplete="email"
-            className="form-control"
+            className={`form-control ${correoInvalido ? 'is-invalid' : ''}`}
             value={datosActuales.correo}
             onChange={actualizarDato('correo')}
             disabled={camposDeshabilitados}
             maxLength={MAX_CORREO_COMERCIALIZADOR}
+            aria-describedby={correoInvalido ? `${idPrefix}-correo-error` : undefined}
             required
           />
+          {correoInvalido && (
+            <div id={`${idPrefix}-correo-error`} className="invalid-feedback">
+              Ingresá un correo válido, por ejemplo: nombre@dominio.com.
+            </div>
+          )}
         </div>
       </div>
 
