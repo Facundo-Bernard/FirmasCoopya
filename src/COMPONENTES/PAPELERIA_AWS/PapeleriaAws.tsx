@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
+import { useSelector } from 'react-redux'
 import { Navigate, useLocation } from 'react-router-dom'
+import FormularioDatosComercializador from '../DATOS_COMERCIALIZADOR/DatosComercializador'
+import {
+  normalizarDatosComercializador,
+  sonDatosComercializadorValidos,
+} from '../DATOS_COMERCIALIZADOR/utilidadesComercializador'
+import type { RootState } from '../../REDUX/store'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024
 const DURACION_ENLACE_MS = 30 * 60 * 1000
-const MAX_COMMERCIALIZER_NAME_LENGTH = 120
-const MAX_COMMERCIALIZER_EMAIL_LENGTH = 254
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const COMMERCIALIZER_STORAGE_KEY = 'firma-coopya:papeleria-aws:comercializador:v1'
 
 type UploadRequestResponse = {
   upload: {
@@ -21,53 +24,8 @@ type UploadRequestError = {
   diagnostic?: string
 }
 
-type DatosComercializador = {
-  nombre: string
-  correo: string
-}
-
-type EstadoDatosComercializador = DatosComercializador & {
-  editando: boolean
-}
-
 const esPdfValido = (archivo: File) =>
   archivo.type === 'application/pdf' && /\.pdf$/i.test(archivo.name) && archivo.size > 0 && archivo.size <= MAX_PDF_BYTES
-
-const normalizarDatosComercializador = (nombre: string, correo: string): DatosComercializador => ({
-  nombre: nombre.trim(),
-  correo: correo.trim(),
-})
-
-const sonDatosComercializadorValidos = ({ nombre, correo }: DatosComercializador) =>
-  nombre.length > 0 &&
-  nombre.length <= MAX_COMMERCIALIZER_NAME_LENGTH &&
-  correo.length > 0 &&
-  correo.length <= MAX_COMMERCIALIZER_EMAIL_LENGTH &&
-  EMAIL_PATTERN.test(correo)
-
-const recuperarDatosComercializador = (): DatosComercializador | null => {
-  try {
-    const datosGuardados = window.localStorage.getItem(COMMERCIALIZER_STORAGE_KEY)
-    if (!datosGuardados) {
-      return null
-    }
-
-    const datos = JSON.parse(datosGuardados) as Partial<DatosComercializador>
-    const datosNormalizados = normalizarDatosComercializador(datos.nombre ?? '', datos.correo ?? '')
-    return sonDatosComercializadorValidos(datosNormalizados) ? datosNormalizados : null
-  } catch {
-    return null
-  }
-}
-
-const guardarDatosComercializador = (datos: DatosComercializador) => {
-  try {
-    // Solo se conservan el nombre y correo en el dispositivo del comercializador para no pedirlos en cada carga.
-    window.localStorage.setItem(COMMERCIALIZER_STORAGE_KEY, JSON.stringify(datos))
-  } catch {
-    // La carga continúa normalmente si el navegador bloquea el almacenamiento local.
-  }
-}
 
 const generarCodigoPdf = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
@@ -80,7 +38,11 @@ const generarCodigoPdf = () => {
   return btoa(texto).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-const crearEnlaceConCodigo = (codigo: string, vence: number, datosComercializador: DatosComercializador) => {
+const crearEnlaceConCodigo = (
+  codigo: string,
+  vence: number,
+  datosComercializador: { nombre: string; correo: string },
+) => {
   const enlace = new URL('/firma-digital', window.location.origin)
   // El fragmento no se envía al servidor ni forma parte de las solicitudes a AWS.
   enlace.hash = new URLSearchParams({
@@ -119,34 +81,14 @@ const subirDirectamenteAS3 = (archivo: File, upload: UploadRequestResponse['uplo
 
 function PapeleriaAws() {
   const location = useLocation()
+  const datosComercializador = useSelector((state: RootState) => state.datosComercializador)
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [datosComercializador, setDatosComercializador] = useState<EstadoDatosComercializador>(() => {
-    const datosGuardados = recuperarDatosComercializador()
-
-    return {
-      nombre: datosGuardados?.nombre ?? '',
-      correo: datosGuardados?.correo ?? '',
-      editando: !datosGuardados,
-    }
-  })
   const [estado, setEstado] = useState('Seleccioná un PDF para comenzar.')
   const [enviando, setEnviando] = useState(false)
   const [progreso, setProgreso] = useState(0)
   const [codigo, setCodigo] = useState('')
   const [enlace, setEnlace] = useState('')
   const codigoDeEnlaceAnterior = new URLSearchParams(location.hash.slice(1)).get('codigo')
-
-  useEffect(() => {
-    const datosParaGuardar = normalizarDatosComercializador(
-      datosComercializador.nombre,
-      datosComercializador.correo,
-    )
-
-    if (sonDatosComercializadorValidos(datosParaGuardar)) {
-      // Persiste al completar ambos campos para que una recarga no obligue a escribirlos otra vez.
-      guardarDatosComercializador(datosParaGuardar)
-    }
-  }, [datosComercializador.nombre, datosComercializador.correo])
 
   if (codigoDeEnlaceAnterior) {
     return <Navigate to={`/firma-digital${location.hash}`} replace />
@@ -171,17 +113,7 @@ function PapeleriaAws() {
     )
   }
 
-  const actualizarDatoComercializador = (campo: keyof DatosComercializador) => (
-    evento: ChangeEvent<HTMLInputElement>,
-  ) => {
-    setDatosComercializador((datosActuales) => ({
-      ...datosActuales,
-      [campo]: evento.target.value,
-    }))
-  }
-
   const editarDatosComercializador = () => {
-    setDatosComercializador((datosActuales) => ({ ...datosActuales, editando: true }))
     // El enlace anterior conserva los datos previos; se oculta hasta que se genere uno nuevo.
     setCodigo('')
     setEnlace('')
@@ -243,7 +175,6 @@ function PapeleriaAws() {
       setEstado('Cargando el PDF directamente en el almacenamiento seguro...')
       await subirDirectamenteAS3(archivo, solicitud.upload, setProgreso)
 
-      setDatosComercializador({ ...datosParaEnvio, editando: false })
       setCodigo(codigoGenerado)
       setEnlace(crearEnlaceConCodigo(codigoGenerado, vence, datosParaEnvio))
       setEstado('La papelería fue enviada correctamente.')
@@ -271,63 +202,14 @@ function PapeleriaAws() {
         <p className="text-secondary mb-4">En esta pantalla vas a poder cargar papelería y generar un link para compartir al cliente</p>
 
         <form className="border rounded p-3 p-md-4 bg-body-tertiary" onSubmit={enviarPapeleria}>
-          <section className="border rounded bg-white p-3 mb-4">
-            <div className="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-              <div>
-                <h2 className="h5 mb-1">Datos del comercializador</h2>
-                <p className="text-secondary mb-0">Se asociarán a la papelería y se incluirán en el correo final.</p>
-              </div>
-
-              {!datosComercializador.editando && (
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={editarDatosComercializador}
-                  disabled={enviando}
-                >
-                  <span aria-hidden="true">✓</span> Editar
-                </button>
-              )}
-            </div>
-
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label htmlFor="nombre-comercializador" className="form-label fw-semibold">Nombre del comercializador</label>
-                <input
-                  id="nombre-comercializador"
-                  type="text"
-                  autoComplete="name"
-                  className="form-control"
-                  value={datosComercializador.nombre}
-                  onChange={actualizarDatoComercializador('nombre')}
-                  disabled={!datosComercializador.editando || enviando}
-                  maxLength={MAX_COMMERCIALIZER_NAME_LENGTH}
-                  required
-                />
-              </div>
-
-              <div className="col-md-6">
-                <label htmlFor="correo-comercializador" className="form-label fw-semibold">Correo del comercializador</label>
-                <input
-                  id="correo-comercializador"
-                  type="email"
-                  autoComplete="email"
-                  className="form-control"
-                  value={datosComercializador.correo}
-                  onChange={actualizarDatoComercializador('correo')}
-                  disabled={!datosComercializador.editando || enviando}
-                  maxLength={MAX_COMMERCIALIZER_EMAIL_LENGTH}
-                  required
-                />
-              </div>
-            </div>
-
-            <p className="form-text mb-0 mt-3">
-              {datosComercializador.editando
-                ? 'Al enviar una papelería, estos datos quedarán guardados en este dispositivo.'
-                : 'Los datos están guardados en este dispositivo. Usá “Editar” para cambiarlos.'}
-            </p>
-          </section>
+          <div className="mb-4">
+            <FormularioDatosComercializador
+              idPrefix="papeleria-aws-comercializador"
+              datosConfirmados={Boolean(enlace)}
+              deshabilitado={enviando}
+              onEditar={editarDatosComercializador}
+            />
+          </div>
 
           <div className="mb-4">
             <label htmlFor="papeleria-pdf" className="form-label fw-semibold">PDF de papelería</label>

@@ -2,6 +2,10 @@ type FirmaState = {
   count: number
   firmaPng: string | null
   clavePapeleria: string | null
+  datosComercializador: {
+    nombre: string
+    correo: string
+  }
 }
 
 type FirmaAction =
@@ -11,11 +15,16 @@ type FirmaAction =
   | { type: 'LIMPIAR_FIRMA' }
   | { type: 'GUARDAR_CLAVE_PAPELERIA'; payload: string }
   | { type: 'LIMPIAR_CLAVE_PAPELERIA' }
+  | { type: 'GUARDAR_DATOS_COMERCIALIZADOR'; payload: FirmaState['datosComercializador'] }
 
 const initialState: FirmaState = {
   count: 0,
   firmaPng: null,
   clavePapeleria: null,
+  datosComercializador: {
+    nombre: '',
+    correo: '',
+  },
 }
 
 const reducer = (state = initialState, action: FirmaAction): FirmaState => {
@@ -32,6 +41,9 @@ const reducer = (state = initialState, action: FirmaAction): FirmaState => {
       return { ...state, clavePapeleria: action.payload }
     case 'LIMPIAR_CLAVE_PAPELERIA':
       return { ...state, clavePapeleria: null }
+    case 'GUARDAR_DATOS_COMERCIALIZADOR':
+      // Comparte el identificador del comercializador entre las pantallas del trámite actual.
+      return { ...state, datosComercializador: action.payload }
     default:
       return state
   }
@@ -53,6 +65,12 @@ export const guardarClavePapeleria = (clave: string): FirmaAction => ({
 
 export const limpiarClavePapeleria = (): FirmaAction => ({
   type: 'LIMPIAR_CLAVE_PAPELERIA',
+})
+
+// Actualiza en Redux el nombre y correo que identifican al comercializador.
+export const guardarDatosComercializador = (datos: FirmaState['datosComercializador']): FirmaAction => ({
+  type: 'GUARDAR_DATOS_COMERCIALIZADOR',
+  payload: datos,
 })
 
 export default reducer
