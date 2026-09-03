@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
@@ -136,6 +136,18 @@ function PapeleriaAws() {
   const [enlace, setEnlace] = useState('')
   const codigoDeEnlaceAnterior = new URLSearchParams(location.hash.slice(1)).get('codigo')
 
+  useEffect(() => {
+    const datosParaGuardar = normalizarDatosComercializador(
+      datosComercializador.nombre,
+      datosComercializador.correo,
+    )
+
+    if (sonDatosComercializadorValidos(datosParaGuardar)) {
+      // Persiste al completar ambos campos para que una recarga no obligue a escribirlos otra vez.
+      guardarDatosComercializador(datosParaGuardar)
+    }
+  }, [datosComercializador.nombre, datosComercializador.correo])
+
   if (codigoDeEnlaceAnterior) {
     return <Navigate to={`/firma-digital${location.hash}`} replace />
   }
@@ -231,7 +243,6 @@ function PapeleriaAws() {
       setEstado('Cargando el PDF directamente en el almacenamiento seguro...')
       await subirDirectamenteAS3(archivo, solicitud.upload, setProgreso)
 
-      guardarDatosComercializador(datosParaEnvio)
       setDatosComercializador({ ...datosParaEnvio, editando: false })
       setCodigo(codigoGenerado)
       setEnlace(crearEnlaceConCodigo(codigoGenerado, vence, datosParaEnvio))

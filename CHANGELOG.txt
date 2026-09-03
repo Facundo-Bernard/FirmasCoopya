@@ -18,7 +18,7 @@ El proyecto utiliza versionado semántico: MAYOR.MENOR.PARCHE.
 - Área de firma ajustada para escritorio y celular, con controles de limpieza reutilizables.
 - El trazo no se borra al rotar el teléfono ni cuando el teclado móvil cambia el tamaño de la pantalla.
 - El botón de colocar firma del usuario ahora usa el mismo submit controlado que la firma del comercializador.
-- La carga de papelería guarda localmente nombre y correo del comercializador, los asocia al enlace y permite editarlos cuando sea necesario.
+- La carga de papelería guarda nombre y correo del comercializador apenas se completan, los asocia al enlace y permite editarlos cuando sea necesario.
 
 
 [0.2.0] - PLANIFICADA
