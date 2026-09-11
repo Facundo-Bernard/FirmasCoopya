@@ -254,9 +254,7 @@ function UnificarPap() {
     return () => controlador.abort()
   }, [clavePapeleriaActiva, codigoDelEnlace, codigoEnlaceValido, vencimientoDelEnlace])
 
-  const unificar = async (event: FormEvent<HTMLFormElement>) => {
-    // Mantiene el mismo contrato que la firma del comercializador y bloquea el submit nativo en móviles.
-    event.preventDefault()
+const unificar = async () => {
 
     if (procesandoPdf || procesandoPdfRef.current) {
       return
@@ -417,26 +415,33 @@ function UnificarPap() {
           )}
         </div>
 
-        <form className="d-flex flex-wrap gap-2 mb-3" onSubmit={unificar}>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
-            aria-busy={procesandoPdf}
-          >
-            {procesandoPdf && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
-            {procesandoPdf ? 'Colocando firmas...' : 'Colocar firma'}
-          </button>
+     <div className="d-flex flex-wrap gap-2 mb-3">
+  <button
+    type="button"
+    className="btn btn-primary"
+    onClick={() => void unificar()}
+    disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
+    aria-busy={procesandoPdf}
+  >
+    {procesandoPdf && (
+      <span
+        className="spinner-border spinner-border-sm me-2"
+        aria-hidden="true"
+      />
+    )}
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setMostrarEnvio(true)}
-            disabled={procesandoPdf || !documentoBytes || mostrarEnvio}
-          >
-            Siguiente
-          </button>
-        </form>
+    {procesandoPdf ? 'Colocando firmas...' : 'Colocar firma'}
+  </button>
+
+  <button
+    type="button"
+    className="btn btn-primary"
+    onClick={() => setMostrarEnvio(true)}
+    disabled={procesandoPdf || !documentoBytes || mostrarEnvio}
+  >
+    Siguiente
+  </button>
+</div>
 
         {mostrarEnvio && documentoBytes && (
           <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
