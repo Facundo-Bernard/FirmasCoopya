@@ -254,7 +254,7 @@ function UnificarPap() {
     return () => controlador.abort()
   }, [clavePapeleriaActiva, codigoDelEnlace, codigoEnlaceValido, vencimientoDelEnlace])
 
-const unificar = async () => {
+  const unificar = async () => {
 
     if (procesandoPdf || procesandoPdfRef.current) {
       return
@@ -385,7 +385,7 @@ const unificar = async () => {
   }
 
   return (
-    <main className="min-vh-100 bg-white">
+    <main className="min-vh-100 bg-white"  translate="no">
       <div className="container py-4">
         <Link to={`/firma-digital${location.hash}`} className="btn btn-link text-primary px-0 mb-3">
           Volver
@@ -415,33 +415,33 @@ const unificar = async () => {
           )}
         </div>
 
-     <div className="d-flex flex-wrap gap-2 mb-3">
-  <button
-    type="button"
-    className="btn btn-primary"
-    onClick={() => void unificar()}
-    disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
-    aria-busy={procesandoPdf}
-  >
-    {procesandoPdf && (
-      <span
-        className="spinner-border spinner-border-sm me-2"
-        aria-hidden="true"
-      />
-    )}
+        <div className="d-flex flex-wrap gap-2 mb-3">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void unificar()}
+            disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
+            aria-busy={procesandoPdf}
+          >
+            {procesandoPdf && (
+              <span
+                className="spinner-border spinner-border-sm me-2"
+                aria-hidden="true"
+              />
+            )}
 
-    {procesandoPdf ? 'Colocando firmas...' : 'Colocar firma'}
-  </button>
+            {procesandoPdf ? 'Colocando firmas...' : 'Colocar firma'}
+          </button>
 
-  <button
-    type="button"
-    className="btn btn-primary"
-    onClick={() => setMostrarEnvio(true)}
-    disabled={procesandoPdf || !documentoBytes || mostrarEnvio}
-  >
-    Siguiente
-  </button>
-</div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setMostrarEnvio(true)}
+            disabled={procesandoPdf || !documentoBytes || mostrarEnvio}
+          >
+            Siguiente
+          </button>
+        </div>
 
         {mostrarEnvio && documentoBytes && (
           <form className="border rounded bg-body-tertiary p-3 p-md-4 mb-3" onSubmit={enviarDocumento}>
