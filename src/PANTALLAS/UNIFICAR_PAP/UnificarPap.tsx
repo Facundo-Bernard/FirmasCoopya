@@ -105,6 +105,8 @@ function UnificarPap() {
   const [troubleshooting, setTroubleshooting] = useState('')
   const [dni, setDni] = useState('')
   const [email, setEmail] = useState('')
+  const [confirmacionEmail, setConfirmacionEmail] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [fotoDni, setFotoDni] = useState<File | null>(null)
   const [fotoGuino, setFotoGuino] = useState<File | null>(null)
   const [dniFrente, setDniFrente] = useState<File | null>(null)
@@ -304,6 +306,11 @@ function UnificarPap() {
       return
     }
 
+    if (email.trim().toLowerCase() !== confirmacionEmail.trim().toLowerCase()) {
+      setMensaje('Los correos electrónicos no coinciden.')
+      return
+    }
+
     const asunto = `PAPELERIA ${dniLimpio}`
     const urlConfirmacion = new URL('/envio-confirmado', window.location.origin).href
 
@@ -333,8 +340,11 @@ function UnificarPap() {
 
       const datos = new FormData()
       datos.append('DNI', dniLimpio)
-      datos.append('email', email)
-      datos.append('Email informado', email)
+      datos.append('Teléfono', telefono.trim())
+      datos.append('email', email.trim())
+      datos.append('Email informado', email.trim())
+      // FormSubmit entrega una copia del envío a la persona sin reemplazar el destinatario interno.
+      datos.append('_cc', email.trim())
       if (nombreComercializador && correoComercializador) {
         datos.append('Nombre del comercializador', nombreComercializador)
         datos.append('Correo del comercializador', correoComercializador)
@@ -454,10 +464,40 @@ function UnificarPap() {
                 <input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   className="form-control form-control-lg"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="tuemail@ejemplo.com"
+                  required
+                />
+              </div>
+
+              <div className="col-md-6">
+                <label htmlFor="confirmacion-email" className="form-label fw-semibold">Confirmá tu email</label>
+                <input
+                  id="confirmacion-email"
+                  type="email"
+                  autoComplete="off"
+                  className="form-control form-control-lg"
+                  value={confirmacionEmail}
+                  onChange={(event) => setConfirmacionEmail(event.target.value)}
+                  placeholder="Repetí tu email"
+                  required
+                />
+              </div>
+
+              <div className="col-md-6">
+                <label htmlFor="telefono" className="form-label fw-semibold">Tu teléfono</label>
+                <input
+                  id="telefono"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  className="form-control form-control-lg"
+                  value={telefono}
+                  onChange={(event) => setTelefono(event.target.value)}
+                  placeholder="Ejemplo: 11 1234 5678"
                   required
                 />
               </div>
