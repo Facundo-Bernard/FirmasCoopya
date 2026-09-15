@@ -120,6 +120,73 @@ const cargarPdfJs = async () => {
   return pdfjsLib
 }
 
+// Reconoce únicamente el error que pdf-lib informa cuando detecta cifrado del PDF.
+const esErrorDePdfCifrado = (error: unknown) => (
+  error instanceof Error && /encrypted|encriptado|encryption/i.test(error.message)
+)
+
+// Distingue los PDFs que no se pueden abrir sin una contraseña proporcionada por la persona.
+const esErrorDeContrasenaDeApertura = (error: unknown) => (
+  error instanceof Error && /password|contraseña/i.test(error.message)
+)
+
+// Convierte un PDF cifrado sin clave de apertura en páginas de imagen para crear una copia que pdf-lib pueda firmar.
+const aplanarPdfCifrado = async (bytesPdf: Uint8Array) => {
+  const pdfjsLib = await cargarPdfJs()
+  let cargaPdf
+
+  try {
+    cargaPdf = pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf), password: '' })
+    const visorPdf = await cargaPdf.promise
+    const documentoPlano = await PDFDocument.create()
+
+    for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
+      const paginaOriginal = await visorPdf.getPage(indice + 1)
+      const viewportBase = paginaOriginal.getViewport({ scale: 1 })
+      const viewportRenderizado = paginaOriginal.getViewport({ scale: 2 })
+      const lienzo = document.createElement('canvas')
+      const contexto = lienzo.getContext('2d')
+
+      if (!contexto) {
+        throw new Error('El navegador no pudo preparar el PDF protegido.')
+      }
+
+      lienzo.width = Math.ceil(viewportRenderizado.width)
+      lienzo.height = Math.ceil(viewportRenderizado.height)
+      await paginaOriginal.render({
+        canvas: lienzo,
+        canvasContext: contexto,
+        viewport: viewportRenderizado,
+      }).promise
+
+      const imagenPdf = await new Promise<Blob>((resolver, rechazar) => {
+        lienzo.toBlob((imagen) => {
+          if (!imagen) {
+            rechazar(new Error('No se pudo generar una imagen del PDF protegido.'))
+            return
+          }
+          resolver(imagen)
+        }, 'image/jpeg', 0.92)
+      })
+      const imagen = await documentoPlano.embedJpg(await imagenPdf.arrayBuffer())
+      const paginaNueva = documentoPlano.addPage([viewportBase.width, viewportBase.height])
+
+      paginaNueva.drawImage(imagen, {
+        x: 0,
+        y: 0,
+        width: viewportBase.width,
+        height: viewportBase.height,
+      })
+      paginaOriginal.cleanup()
+    }
+
+    return documentoPlano
+  } finally {
+    // Libera los lienzos y el visor temporal una vez generada la copia plana.
+    await cargaPdf?.destroy().catch(() => undefined)
+  }
+}
+
 const escaparExpresionRegular = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const crearExpresionMarcador = (marcador: string) => new RegExp(escaparExpresionRegular(marcador), 'i')
@@ -391,6 +458,9 @@ export async function firmarPdf(
       textosPorPagina.push(items)
     }
   } catch (error) {
+    if (esErrorDeContrasenaDeApertura(error)) {
+      throw new Error('El PDF requiere una contraseña de apertura. Remové la clave antes de firmarlo.')
+    }
     throw new Error(`PDF.js no pudo leer el archivo: ${error instanceof Error ? error.message : String(error)}`)
   } finally {
     // Libera PDF.js antes de abrir el mismo PDF con pdf-lib para reducir el pico de memoria en móviles.
@@ -402,9 +472,23 @@ export async function firmarPdf(
   try {
     documento = await PDFDocument.load(bytesPdf)
   } catch (error) {
-    throw new Error(
-      `pdf-lib no pudo abrir el archivo. Puede estar protegido, encriptado o ser invalido: ${error instanceof Error ? error.message : String(error)}`,
-    )
+    if (esErrorDePdfCifrado(error)) {
+      try {
+        // Solo usa el aplanado cuando el flujo normal falla por cifrado de permisos sin contraseña.
+        documento = await aplanarPdfCifrado(bytesPdf)
+      } catch (errorDeAplanado) {
+        if (esErrorDeContrasenaDeApertura(errorDeAplanado)) {
+          throw new Error('El PDF requiere una contraseña de apertura. Remové la clave antes de firmarlo.')
+        }
+        throw new Error(
+          `No se pudo preparar el PDF protegido para firmarlo: ${errorDeAplanado instanceof Error ? errorDeAplanado.message : String(errorDeAplanado)}`,
+        )
+      }
+    } else {
+      throw new Error(
+        `pdf-lib no pudo abrir el archivo. Puede estar protegido, encriptado o ser invalido: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   let firma
