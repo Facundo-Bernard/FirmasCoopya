@@ -9,7 +9,7 @@ import type { AppDispatch, RootState } from '../../REDUX/store'
 import CapturaCamara from '../COMPONENTES/CAPTURA_CAMARA/CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
-const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
+const ENDPOINT_ENVIO = '/api/enviar'
 const MAXIMO_ENVIO_BYTES = 10_000_000
 const MAXIMO_PDF_BYTES = 20 * 1024 * 1024
 const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
@@ -79,9 +79,10 @@ const describirError = (error: unknown) => {
   }
 }
 
-const validarRespuestaFormSubmit = (respuesta: Response) => {
+const validarRespuestaEnvio = async (respuesta: Response) => {
   if (!respuesta.ok) {
-    throw new Error(`FormSubmit rechazo el envio (HTTP ${respuesta.status}).`)
+    const errorData = await respuesta.json().catch(() => null)
+    throw new Error(errorData?.error || `El servidor rechazó el envío (HTTP ${respuesta.status}).`)
   }
 }
 
@@ -310,7 +311,6 @@ function UnificarPap() {
     }
 
     const asunto = `PAPELERIA ${dniLimpio}`
-    const urlConfirmacion = new URL('/envio-confirmado', window.location.origin).href
 
     try {
       setEnviando(true)
@@ -341,27 +341,19 @@ function UnificarPap() {
       datos.append('Teléfono', telefono.trim())
       datos.append('email', email.trim())
       datos.append('Email informado', email.trim())
-      // FormSubmit entrega una copia del envío a la persona sin reemplazar el destinatario interno.
-      datos.append('_cc', email.trim())
       if (nombreComercializador && correoComercializador) {
         datos.append('Nombre del comercializador', nombreComercializador)
         datos.append('Correo del comercializador', correoComercializador)
       }
-      datos.append('_subject', asunto)
-      datos.append('_template', 'table')
-      datos.append('_captcha', 'false')
-      datos.append('_url', window.location.href)
-      datos.append('_next', urlConfirmacion)
       datos.append('attachment', pdfFirmado, `${asunto}.pdf`)
       datos.append('attachment_2', documentacion, `DOCUMENTACION_${dniLimpio}.pdf`)
 
-      const respuesta = await fetch(FORM_SUBMIT_URL, {
+      const respuesta = await fetch(ENDPOINT_ENVIO, {
         method: 'POST',
         body: datos,
-        redirect: 'follow',
       })
 
-      validarRespuestaFormSubmit(respuesta)
+      await validarRespuestaEnvio(respuesta)
       if (clavePapeleriaActiva) {
         try {
           await eliminarPapeleriaTrasEnvio(clavePapeleriaActiva)

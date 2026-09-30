@@ -3,7 +3,7 @@ import { PDFDocument } from 'pdf-lib'
 const ANCHO_PAGINA = 595
 const ALTO_PAGINA = 842
 const MARGEN = 24
-const MAXIMO_IMAGEN = 1800
+const MAXIMO_IMAGEN = 1200
 
 const convertirAJpeg = async (archivo: File) => {
   const url = URL.createObjectURL(archivo)
@@ -26,7 +26,7 @@ const convertirAJpeg = async (archivo: File) => {
       canvas.toBlob(
         (resultado) => resultado ? resolve(resultado) : reject(new Error('No se pudo convertir la imagen.')),
         'image/jpeg',
-        0.82,
+        0.75,
       )
     })
 
