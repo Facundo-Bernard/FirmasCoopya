@@ -108,15 +108,19 @@ function UnificarPap() {
       setProcesandoPdf(true)
       setTroubleshooting('')
       const resultado = await firmarPdf(await archivoPdf.arrayBuffer(), firmaPng)
+
+      if (resultado.coincidencias === 0) {
+        setMensaje('No se colocó ninguna firma. Selecciona un PDF con al menos una marca firma_aqui.')
+        return
+      }
+
       const bytes = resultado.bytes.slice()
       const url = URL.createObjectURL(new Blob([copiarArrayBuffer(bytes)], { type: 'application/pdf' }))
 
       setDocumentoBytes(bytes)
       setDocumentoUrl(url)
       setMensaje(
-        resultado.coincidencias
-          ? `Firma colocada en ${resultado.coincidencias} lugar${resultado.coincidencias === 1 ? '' : 'es'}.`
-          : 'No se encontraron lugares con la palabra clave.',
+        `Firma colocada en ${resultado.coincidencias} lugar${resultado.coincidencias === 1 ? '' : 'es'}.`,
       )
     } catch (error) {
       setMensaje('No se pudo procesar el PDF.')
@@ -199,7 +203,7 @@ function UnificarPap() {
   return (
     <main className="min-vh-100 bg-white">
       <div className="container py-4">
-        <Link to="/firma-digital" className="btn btn-link text-primary px-0 mb-3">
+        <Link to="/" className="btn btn-link text-primary px-0 mb-3">
           Volver
         </Link>
 
@@ -208,7 +212,7 @@ function UnificarPap() {
         <div className="mb-3">
           <p className="fs-5">Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
           <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
-          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} />
+          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} disabled={procesandoPdf} />
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">

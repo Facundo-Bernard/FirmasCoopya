@@ -9,9 +9,9 @@ function MENU() {
         </header>
 
         <section className="d-grid gap-3 mx-auto" style={{ maxWidth: '18rem' }} aria-label="Tipos de firma">
-          <Link to="/firma-digital" className="btn btn-primary btn-lg rounded-4 shadow-sm">
+          <button type="button" className="btn btn-primary btn-lg rounded-4 shadow-sm" disabled>
             Electrónica
-          </Link>
+          </button>
           <button type="button" className="btn btn-primary btn-lg rounded-4 shadow-sm">
             Digital
           </button>
