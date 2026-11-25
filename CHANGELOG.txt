@@ -8,6 +8,20 @@ El proyecto utiliza versionado semántico: MAYOR.MENOR.PARCHE.
 - PARCHE: corrección sin cambios funcionales importantes.
 
 
+[0.1.3] - 2026-09-02
+----------------------
+
+- Nuevo componente compartido de firma utilizado por la firma electrónica y la firma del comercializador.
+- Eliminada la restauración de la imagen dentro del mismo lienzo, que duplicaba la firma mientras se dibujaba.
+- Se conserva el recorte de espacio vacío para que se pueda firmar desde cualquier zona del recuadro.
+- La firma incorporada al PDF ahora mantiene su proporción y respeta un tamaño máximo visual.
+- Área de firma ajustada para escritorio y celular, con controles de limpieza reutilizables.
+- El trazo no se borra al rotar el teléfono ni cuando el teclado móvil cambia el tamaño de la pantalla.
+- El botón de colocar firma del usuario ahora usa el mismo submit controlado que la firma del comercializador.
+- Un componente compartido gestiona nombre y correo del comercializador en la carga normal y en Firma Comercializador.
+- Esos datos se guardan apenas se completan en el dispositivo y se sincronizan con Redux para reutilizarlos durante el trámite.
+
+
 [0.2.0] - PLANIFICADA
 ---------------------
 

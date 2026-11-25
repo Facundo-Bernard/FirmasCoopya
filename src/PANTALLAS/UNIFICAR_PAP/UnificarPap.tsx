@@ -1,15 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { Link, useLocation } from 'react-router-dom'
 import { crearPdfDocumentacion } from '../../SERVICIOS/crearPdfDocumentacion'
 import { firmarPdf } from '../../SERVICIOS/firmarPdf'
-import type { RootState } from '../../REDUX/store'
-import CapturaCamara from './CapturaCamara'
+import { guardarClavePapeleria, limpiarClavePapeleria } from '../../REDUX/reducer'
+import type { AppDispatch, RootState } from '../../REDUX/store'
+import CapturaCamara from '../COMPONENTES/CAPTURA_CAMARA/CapturaCamara'
 
 const DESTINO_EMAIL = 'info@asistodo.com.ar'
-const FORM_SUBMIT_URL = `https://formsubmit.co/${DESTINO_EMAIL}`
+const ENDPOINT_ENVIO = '/api/enviar'
 const MAXIMO_ENVIO_BYTES = 10_000_000
+const MAXIMO_PDF_BYTES = 20 * 1024 * 1024
+const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
+const API_HORA_UTC = 'https://utctime.app/api/now'
+
+type DownloadUrlResponse = {
+  url: string
+  expiresIn: number
+}
+
+type HoraUtcResponse = {
+  unix_ms: number
+}
+
+const obtenerHoraUtc = async (signal: AbortSignal) => {
+  const respuesta = await fetch(API_HORA_UTC, { signal })
+  if (!respuesta.ok) {
+    throw new Error('No se pudo consultar la hora actual.')
+  }
+
+  const hora = (await respuesta.json()) as HoraUtcResponse
+  if (!Number.isInteger(hora.unix_ms)) {
+    throw new Error('La hora recibida no es válida.')
+  }
+
+  return hora.unix_ms
+}
+
+const eliminarPapeleriaVencida = async (codigo: string, signal: AbortSignal) => {
+  await fetch('/api/pdf/delete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${codigo}` },
+    signal,
+  })
+}
+
+const eliminarPapeleriaTrasEnvio = async (codigo: string) => {
+  const respuesta = await fetch('/api/pdf/delete', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${codigo}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason: 'email-confirmed' }),
+  })
+
+  if (!respuesta.ok) {
+    throw new Error('No se pudo eliminar la papelería privada.')
+  }
+}
 
 const copiarArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const copia = new ArrayBuffer(bytes.byteLength)
@@ -29,9 +79,10 @@ const describirError = (error: unknown) => {
   }
 }
 
-const validarRespuestaFormSubmit = (respuesta: Response) => {
+const validarRespuestaEnvio = async (respuesta: Response) => {
   if (!respuesta.ok) {
-    throw new Error(`FormSubmit rechazo el envio (HTTP ${respuesta.status}).`)
+    const errorData = await respuesta.json().catch(() => null)
+    throw new Error(errorData?.error || `El servidor rechazó el envío (HTTP ${respuesta.status}).`)
   }
 }
 
@@ -44,7 +95,10 @@ const mensajeDeEnvio = (error: unknown) => {
 }
 
 function UnificarPap() {
+  const location = useLocation()
+  const dispatch = useDispatch<AppDispatch>()
   const firmaPng = useSelector((state: RootState) => state.firmaPng)
+  const clavePapeleria = useSelector((state: RootState) => state.clavePapeleria)
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null)
   const [documentoBytes, setDocumentoBytes] = useState<Uint8Array | null>(null)
   const [documentoUrl, setDocumentoUrl] = useState<string | null>(null)
@@ -52,6 +106,8 @@ function UnificarPap() {
   const [troubleshooting, setTroubleshooting] = useState('')
   const [dni, setDni] = useState('')
   const [email, setEmail] = useState('')
+  const [confirmacionEmail, setConfirmacionEmail] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [fotoDni, setFotoDni] = useState<File | null>(null)
   const [fotoGuino, setFotoGuino] = useState<File | null>(null)
   const [dniFrente, setDniFrente] = useState<File | null>(null)
@@ -62,6 +118,28 @@ function UnificarPap() {
   const [envioCompleto, setEnvioCompleto] = useState(false)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const [mostrarEnvio, setMostrarEnvio] = useState(false)
+  const [cargandoPapeleriaDelEnlace, setCargandoPapeleriaDelEnlace] = useState(false)
+  const [papeleriaEliminada, setPapeleriaEliminada] = useState(false)
+  const [eliminacionPendiente, setEliminacionPendiente] = useState(false)
+  const procesandoPdfRef = useRef(false)
+  const parametrosDelEnlace = new URLSearchParams(location.hash.slice(1))
+  const codigoDelEnlace = parametrosDelEnlace.get('codigo')
+  const nombreComercializador = parametrosDelEnlace.get('comercializador_nombre')?.trim() ?? ''
+  const correoComercializador = parametrosDelEnlace.get('comercializador_correo')?.trim() ?? ''
+  const codigoEnlaceValido = codigoDelEnlace && DOCUMENT_KEY_PATTERN.test(codigoDelEnlace)
+    ? codigoDelEnlace
+    : null
+  const clavePapeleriaActiva = clavePapeleria === codigoEnlaceValido ? clavePapeleria : null
+  const vencimientoDelEnlace = Number(parametrosDelEnlace.get('vence'))
+
+  useEffect(() => {
+    if (codigoEnlaceValido) {
+      dispatch(guardarClavePapeleria(codigoEnlaceValido))
+      return
+    }
+
+    dispatch(limpiarClavePapeleria())
+  }, [codigoEnlaceValido, dispatch])
 
   useEffect(() => {
     return () => {
@@ -71,13 +149,7 @@ function UnificarPap() {
     }
   }, [documentoUrl])
 
-  const cargarPdf = (event: ChangeEvent<HTMLInputElement>) => {
-    const archivo = event.target.files?.[0]
-
-    if (!archivo) {
-      return
-    }
-
+  const prepararPdf = (archivo: File) => {
     setArchivoPdf(archivo)
     setDocumentoBytes(null)
     setDocumentoUrl(URL.createObjectURL(archivo))
@@ -89,12 +161,103 @@ function UnificarPap() {
     setDniDorso(null)
     setComprobanteCbu(null)
     setEnvioCompleto(false)
+    setPapeleriaEliminada(false)
+    setEliminacionPendiente(false)
     setMostrarConfirmacion(false)
     setMostrarEnvio(false)
   }
 
+  const cargarPdf = (event: ChangeEvent<HTMLInputElement>) => {
+    const archivo = event.target.files?.[0]
+
+    if (archivo) {
+      prepararPdf(archivo)
+    }
+  }
+
+  useEffect(() => {
+    if (!codigoEnlaceValido) {
+      if (codigoDelEnlace) {
+        setMensaje('Link expirado')
+      }
+      return
+    }
+
+    if (!clavePapeleriaActiva) {
+      return
+    }
+
+    if (!Number.isFinite(vencimientoDelEnlace)) {
+      setMensaje('Link expirado')
+      return
+    }
+
+    const controlador = new AbortController()
+
+    const recuperarPdf = async () => {
+      try {
+        setCargandoPapeleriaDelEnlace(true)
+        setMensaje('Validando la vigencia del enlace...')
+        setTroubleshooting('')
+
+        const horaActual = await obtenerHoraUtc(controlador.signal)
+        if (horaActual >= vencimientoDelEnlace) {
+          setMensaje('Link expirado')
+          void eliminarPapeleriaVencida(clavePapeleriaActiva, controlador.signal).catch(() => undefined)
+          return
+        }
+
+        setMensaje('Recuperando la papelería desde el enlace...')
+
+        const respuesta = await fetch('/api/pdf/download-url', {
+          headers: { Authorization: `Bearer ${clavePapeleriaActiva}` },
+          signal: controlador.signal,
+        })
+
+        if (!respuesta.ok) {
+          if (respuesta.status === 410) {
+            setMensaje('Link expirado')
+            return
+          }
+          throw new Error('No se encontró la papelería asociada a este enlace.')
+        }
+
+        const descarga = (await respuesta.json()) as DownloadUrlResponse
+        if (!descarga.url) {
+          throw new Error('La descarga no está disponible.')
+        }
+
+        const archivoRespuesta = await fetch(descarga.url, { signal: controlador.signal })
+        if (!archivoRespuesta.ok) {
+          throw new Error('No se pudo descargar la papelería.')
+        }
+
+        const pdf = await archivoRespuesta.blob()
+        if (!pdf.size || pdf.size > MAXIMO_PDF_BYTES) {
+          throw new Error('El archivo recuperado no es válido.')
+        }
+
+        prepararPdf(new File([pdf], 'papeleria.pdf', { type: 'application/pdf' }))
+        setMensaje('Papelería recuperada. Ahora podés colocar la firma.')
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+
+        setMensaje('No se pudo recuperar la papelería. El enlace puede ser inválido o el archivo ya no estar disponible.')
+      } finally {
+        setCargandoPapeleriaDelEnlace(false)
+      }
+    }
+
+    void recuperarPdf()
+
+    return () => controlador.abort()
+  }, [clavePapeleriaActiva, codigoDelEnlace, codigoEnlaceValido, vencimientoDelEnlace])
+
   const unificar = async () => {
-    if (procesandoPdf) {
+
+    if (procesandoPdf || procesandoPdfRef.current) {
       return
     }
 
@@ -105,16 +268,17 @@ function UnificarPap() {
     }
 
     try {
+      procesandoPdfRef.current = true
       setProcesandoPdf(true)
       setTroubleshooting('')
       const resultado = await firmarPdf(await archivoPdf.arrayBuffer(), firmaPng)
 
       if (resultado.coincidencias === 0) {
-        setMensaje('No se colocó ninguna firma. Selecciona un PDF con al menos una marca firma_aqui.')
+        setMensaje('No se colocó ninguna firma. El PDF debe tener al menos una marca firma_aqui.')
         return
       }
 
-      const bytes = resultado.bytes.slice()
+      const bytes = resultado.bytes
       const url = URL.createObjectURL(new Blob([copiarArrayBuffer(bytes)], { type: 'application/pdf' }))
 
       setDocumentoBytes(bytes)
@@ -126,6 +290,7 @@ function UnificarPap() {
       setMensaje('No se pudo procesar el PDF.')
       setTroubleshooting(describirError(error))
     } finally {
+      procesandoPdfRef.current = false
       setProcesandoPdf(false)
     }
   }
@@ -144,13 +309,19 @@ function UnificarPap() {
       return
     }
 
+    if (email.trim().toLowerCase() !== confirmacionEmail.trim().toLowerCase()) {
+      setMensaje('Los correos electrónicos no coinciden.')
+      return
+    }
+
     const asunto = `PAPELERIA ${dniLimpio}`
-    const urlConfirmacion = new URL('/envio-confirmado', window.location.origin).href
 
     try {
       setEnviando(true)
       setEnvioCompleto(false)
       setMostrarConfirmacion(false)
+      setPapeleriaEliminada(false)
+      setEliminacionPendiente(false)
       setMensaje('Enviando papeleria...')
       setTroubleshooting('')
 
@@ -171,23 +342,32 @@ function UnificarPap() {
 
       const datos = new FormData()
       datos.append('DNI', dniLimpio)
-      datos.append('email', email)
-      datos.append('Email informado', email)
-      datos.append('_subject', asunto)
-      datos.append('_template', 'table')
-      datos.append('_captcha', 'false')
-      datos.append('_url', window.location.href)
-      datos.append('_next', urlConfirmacion)
+      datos.append('Teléfono', telefono.trim())
+      datos.append('email', email.trim())
+      datos.append('Email informado', email.trim())
+      if (nombreComercializador && correoComercializador) {
+        datos.append('Nombre del comercializador', nombreComercializador)
+        datos.append('Correo del comercializador', correoComercializador)
+      }
       datos.append('attachment', pdfFirmado, `${asunto}.pdf`)
       datos.append('attachment_2', documentacion, `DOCUMENTACION_${dniLimpio}.pdf`)
 
-      const respuesta = await fetch(FORM_SUBMIT_URL, {
+      const respuesta = await fetch(ENDPOINT_ENVIO, {
         method: 'POST',
         body: datos,
-        redirect: 'follow',
       })
 
-      validarRespuestaFormSubmit(respuesta)
+      await validarRespuestaEnvio(respuesta)
+      if (clavePapeleriaActiva) {
+        try {
+          await eliminarPapeleriaTrasEnvio(clavePapeleriaActiva)
+          dispatch(limpiarClavePapeleria())
+          setPapeleriaEliminada(true)
+        } catch (error) {
+          setEliminacionPendiente(true)
+          setTroubleshooting(describirError(error))
+        }
+      }
       setMensaje('')
       setEnvioCompleto(true)
       setMostrarConfirmacion(true)
@@ -201,9 +381,9 @@ function UnificarPap() {
   }
 
   return (
-    <main className="min-vh-100 bg-white">
+    <main className="min-vh-100 bg-white"  translate="no">
       <div className="container py-4">
-        <Link to="/" className="btn btn-link text-primary px-0 mb-3">
+        <Link to={codigoEnlaceValido ? `/firma-digital${location.hash}` : '/'} className="btn btn-link text-primary px-0 mb-3">
           Volver
         </Link>
 
@@ -211,19 +391,41 @@ function UnificarPap() {
 
         <div className="mb-3">
           <p className="fs-5">Selecciona la papelería, coloca la firma y completa tus datos. El documento firmado se enviará automáticamente a {DESTINO_EMAIL}.</p>
-          <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
-          <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} disabled={procesandoPdf} />
+
+          {codigoDelEnlace ? (
+            <div className="border rounded bg-body-tertiary p-3">
+              <h2 className="h5 mb-1">Papelería del enlace</h2>
+              <p className="mb-0">
+                {cargandoPapeleriaDelEnlace
+                  ? 'Descargando el PDF privado...'
+                  : archivoPdf
+                    ? 'El PDF ya está listo para firmar.'
+                    : 'No se pudo preparar el PDF.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <label htmlFor="pdf" className="form-label fw-semibold">Selecciona un PDF</label>
+              <input id="pdf" type="file" accept="application/pdf" className="form-control form-control-lg" onChange={cargarPdf} disabled={procesandoPdf} />
+            </>
+          )}
         </div>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
           <button
             type="button"
             className="btn btn-primary"
-            onClick={unificar}
-            disabled={procesandoPdf}
+            onClick={() => void unificar()}
+            disabled={procesandoPdf || cargandoPapeleriaDelEnlace}
             aria-busy={procesandoPdf}
           >
-            {procesandoPdf && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+            {procesandoPdf && (
+              <span
+                className="spinner-border spinner-border-sm me-2"
+                aria-hidden="true"
+              />
+            )}
+
             {procesandoPdf ? 'Colocando firmas...' : 'Colocar firma'}
           </button>
 
@@ -263,10 +465,40 @@ function UnificarPap() {
                 <input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   className="form-control form-control-lg"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="tuemail@ejemplo.com"
+                  required
+                />
+              </div>
+
+              <div className="col-md-6">
+                <label htmlFor="confirmacion-email" className="form-label fw-semibold">Confirmá tu email</label>
+                <input
+                  id="confirmacion-email"
+                  type="email"
+                  autoComplete="off"
+                  className="form-control form-control-lg"
+                  value={confirmacionEmail}
+                  onChange={(event) => setConfirmacionEmail(event.target.value)}
+                  placeholder="Repetí tu email"
+                  required
+                />
+              </div>
+
+              <div className="col-md-6">
+                <label htmlFor="telefono" className="form-label fw-semibold">Tu teléfono</label>
+                <input
+                  id="telefono"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  className="form-control form-control-lg"
+                  value={telefono}
+                  onChange={(event) => setTelefono(event.target.value)}
+                  placeholder="Ejemplo: 11 1234 5678"
                   required
                 />
               </div>
@@ -407,6 +639,8 @@ function UnificarPap() {
                 <div className="modal-body p-4">
                   <h2 className="h4 mb-3">Envío confirmado</h2>
                   <p className="fs-5 mb-4">Las firmas, el CBU y el DNI se han enviado correctamente.</p>
+                  {papeleriaEliminada && <p className="text-success">La papelería privada fue eliminada de AWS.</p>}
+                  {eliminacionPendiente && <p className="text-warning">El correo fue enviado, pero no se pudo eliminar la papelería privada.</p>}
                   <Link to="/" className="btn btn-primary btn-lg w-100">
                     Volver al inicio
                   </Link>

@@ -28,9 +28,10 @@ export type OpcionMarcadorPlanPdf = {
   desplazamientoY?: number
 }
 
-const ANCHO_FIRMA = 140
-const ALTO_FIRMA = 140
-const ALTO_FIRMA_COMERCIALIZADOR = 60
+const ANCHO_MAXIMO_FIRMA = 120
+const ALTO_MAXIMO_FIRMA = 48
+const ANCHO_MAXIMO_FIRMA_COMERCIALIZADOR = 120
+const ALTO_MAXIMO_FIRMA_COMERCIALIZADOR = 44
 const GROSOR_TILDE_PLAN = 2.5
 
 type ResultadoFirma = {
@@ -55,6 +56,11 @@ type PaginaTextoPdf = {
 type CoincidenciaTextoPdf = {
   pagina: PDFPage
   item: ItemTextoPdf
+}
+
+type ImagenFirma = {
+  width: number
+  height: number
 }
 
 type PromiseConCompatibilidad = typeof Promise & {
@@ -112,6 +118,73 @@ const cargarPdfJs = async () => {
   const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
   return pdfjsLib
+}
+
+// Reconoce únicamente el error que pdf-lib informa cuando detecta cifrado del PDF.
+const esErrorDePdfCifrado = (error: unknown) => (
+  error instanceof Error && /encrypted|encriptado|encryption/i.test(error.message)
+)
+
+// Distingue los PDFs que no se pueden abrir sin una contraseña proporcionada por la persona.
+const esErrorDeContrasenaDeApertura = (error: unknown) => (
+  error instanceof Error && /password|contraseña/i.test(error.message)
+)
+
+// Convierte un PDF cifrado sin clave de apertura en páginas de imagen para crear una copia que pdf-lib pueda firmar.
+const aplanarPdfCifrado = async (bytesPdf: Uint8Array) => {
+  const pdfjsLib = await cargarPdfJs()
+  let cargaPdf
+
+  try {
+    cargaPdf = pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf), password: '' })
+    const visorPdf = await cargaPdf.promise
+    const documentoPlano = await PDFDocument.create()
+
+    for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
+      const paginaOriginal = await visorPdf.getPage(indice + 1)
+      const viewportBase = paginaOriginal.getViewport({ scale: 1 })
+      const viewportRenderizado = paginaOriginal.getViewport({ scale: 2 })
+      const lienzo = document.createElement('canvas')
+      const contexto = lienzo.getContext('2d')
+
+      if (!contexto) {
+        throw new Error('El navegador no pudo preparar el PDF protegido.')
+      }
+
+      lienzo.width = Math.ceil(viewportRenderizado.width)
+      lienzo.height = Math.ceil(viewportRenderizado.height)
+      await paginaOriginal.render({
+        canvas: lienzo,
+        canvasContext: contexto,
+        viewport: viewportRenderizado,
+      }).promise
+
+      const imagenPdf = await new Promise<Blob>((resolver, rechazar) => {
+        lienzo.toBlob((imagen) => {
+          if (!imagen) {
+            rechazar(new Error('No se pudo generar una imagen del PDF protegido.'))
+            return
+          }
+          resolver(imagen)
+        }, 'image/jpeg', 0.92)
+      })
+      const imagen = await documentoPlano.embedJpg(await imagenPdf.arrayBuffer())
+      const paginaNueva = documentoPlano.addPage([viewportBase.width, viewportBase.height])
+
+      paginaNueva.drawImage(imagen, {
+        x: 0,
+        y: 0,
+        width: viewportBase.width,
+        height: viewportBase.height,
+      })
+      paginaOriginal.cleanup()
+    }
+
+    return documentoPlano
+  } finally {
+    // Libera los lienzos y el visor temporal una vez generada la copia plana.
+    await cargaPdf?.destroy().catch(() => undefined)
+  }
 }
 
 const escaparExpresionRegular = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -341,6 +414,22 @@ const dibujarPlanEnTexto = (
   return 0
 }
 
+const calcularDimensionesFirma = (firma: ImagenFirma, esFirmaComercializador: boolean) => {
+  const anchoMaximo = esFirmaComercializador
+    ? ANCHO_MAXIMO_FIRMA_COMERCIALIZADOR
+    : ANCHO_MAXIMO_FIRMA
+  const altoMaximo = esFirmaComercializador
+    ? ALTO_MAXIMO_FIRMA_COMERCIALIZADOR
+    : ALTO_MAXIMO_FIRMA
+  const escala = Math.min(anchoMaximo / firma.width, altoMaximo / firma.height)
+
+  // La firma recortada puede ser horizontal o vertical; se adapta sin deformarla ni ocupar todo el recuadro.
+  return {
+    width: firma.width * escala,
+    height: firma.height * escala,
+  }
+}
+
 export async function firmarPdf(
   pdf: ArrayBuffer,
   firmaPng: string,
@@ -350,12 +439,32 @@ export async function firmarPdf(
 ): Promise<ResultadoFirma> {
   const pdfjsLib = await cargarPdfJs()
   const bytesPdf = new Uint8Array(pdf)
-  let visorPdf
+  let cargaPdf
+  const textosPorPagina: ItemTextoPdf[][] = []
 
   try {
-    visorPdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) }).promise
+    cargaPdf = pdfjsLib.getDocument({ data: new Uint8Array(bytesPdf) })
+    const visorPdf = await cargaPdf.promise
+
+    for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
+      const pagina = await visorPdf.getPage(indice + 1)
+      const contenido = await pagina.getTextContent()
+      const items = contenido.items.flatMap<ItemTextoPdf>((item) => (
+        'str' in item
+          ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }]
+          : []
+      ))
+
+      textosPorPagina.push(items)
+    }
   } catch (error) {
+    if (esErrorDeContrasenaDeApertura(error)) {
+      throw new Error('El PDF requiere una contraseña de apertura. Remové la clave antes de firmarlo.')
+    }
     throw new Error(`PDF.js no pudo leer el archivo: ${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    // Libera PDF.js antes de abrir el mismo PDF con pdf-lib para reducir el pico de memoria en móviles.
+    await cargaPdf?.destroy().catch(() => undefined)
   }
 
   let documento: PDFDocument
@@ -363,9 +472,23 @@ export async function firmarPdf(
   try {
     documento = await PDFDocument.load(bytesPdf)
   } catch (error) {
-    throw new Error(
-      `pdf-lib no pudo abrir el archivo. Puede estar protegido, encriptado o ser invalido: ${error instanceof Error ? error.message : String(error)}`,
-    )
+    if (esErrorDePdfCifrado(error)) {
+      try {
+        // Solo usa el aplanado cuando el flujo normal falla por cifrado de permisos sin contraseña.
+        documento = await aplanarPdfCifrado(bytesPdf)
+      } catch (errorDeAplanado) {
+        if (esErrorDeContrasenaDeApertura(errorDeAplanado)) {
+          throw new Error('El PDF requiere una contraseña de apertura. Remové la clave antes de firmarlo.')
+        }
+        throw new Error(
+          `No se pudo preparar el PDF protegido para firmarlo: ${errorDeAplanado instanceof Error ? errorDeAplanado.message : String(errorDeAplanado)}`,
+        )
+      }
+    } else {
+      throw new Error(
+        `pdf-lib no pudo abrir el archivo. Puede estar protegido, encriptado o ser invalido: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   let firma
@@ -377,32 +500,24 @@ export async function firmarPdf(
   }
 
   const paginasPdf = documento.getPages()
-  const paginasTexto: PaginaTextoPdf[] = []
-
-  for (let indice = 0; indice < visorPdf.numPages; indice += 1) {
-    const pagina = await visorPdf.getPage(indice + 1)
-    const contenido = await pagina.getTextContent()
-    const items = contenido.items.flatMap<ItemTextoPdf>((item) => (
-      'str' in item
-        ? [{ str: item.str, transform: item.transform, width: item.width, height: item.height }]
-        : []
-    ))
-
-    paginasTexto.push({ pagina: paginasPdf[indice], items })
-  }
+  const paginasTexto: PaginaTextoPdf[] = textosPorPagina.map((items, indice) => ({
+    pagina: paginasPdf[indice],
+    items,
+  }))
 
   const coincidenciasFirma = buscarCoincidencias(paginasTexto, palabraClave)
   const esFirmaComercializador = palabraClave.toLowerCase() === PALABRA_CLAVE_COMERCIALIZADOR
-  const altoFirma = esFirmaComercializador ? ALTO_FIRMA_COMERCIALIZADOR : ALTO_FIRMA
-  const desplazamientoFirmaY = esFirmaComercializador ? 30 : ALTO_FIRMA - 80
+  const dimensionesFirma = calcularDimensionesFirma(firma, esFirmaComercializador)
+  // Conserva el centro visual usado antes, pero con una firma más pequeña y proporcional.
+  const centroFirmaY = esFirmaComercializador ? 0 : 10
 
   for (const { pagina, item } of coincidenciasFirma) {
     const [, , , , posicionX, posicionY] = item.transform
     pagina.drawImage(firma, {
       x: Math.max(0, posicionX - 4),
-      y: Math.max(0, posicionY - desplazamientoFirmaY),
-      width: ANCHO_FIRMA,
-      height: altoFirma,
+      y: Math.max(0, posicionY + centroFirmaY - dimensionesFirma.height / 2),
+      width: dimensionesFirma.width,
+      height: dimensionesFirma.height,
     })
   }
 
