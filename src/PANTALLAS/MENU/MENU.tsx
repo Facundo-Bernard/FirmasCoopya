@@ -11,15 +11,6 @@ function MENU() {
 
         <section className="row g-3" aria-label="Herramientas disponibles">
           <div className="col-md-6">
-            <Link to="/firma-digital" className="card h-100 border-primary shadow-sm text-decoration-none">
-              <div className="card-body p-4">
-                <h2 className="h4 text-primary mb-2">Firma electrónica</h2>
-                <p className="text-secondary mb-0">Dibujá tu firma y completá la papelería desde cualquier dispositivo.</p>
-              </div>
-            </Link>
-          </div>
-
-          <div className="col-md-6">
             <Link to="/firma-comercializador" className="card h-100 border-primary shadow-sm text-decoration-none">
               <div className="card-body p-4">
                 <h2 className="h4 text-primary mb-2">Firma del comercializador</h2>

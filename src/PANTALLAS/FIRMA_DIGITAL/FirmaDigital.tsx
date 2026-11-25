@@ -5,7 +5,7 @@ import { guardarClavePapeleria, guardarFirma, limpiarClavePapeleria, limpiarFirm
 import type { AppDispatch, RootState } from '../../REDUX/store'
 import FirmaPad from '../COMPONENTES/FIRMA/FirmaPad'
 
-const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
+export const DOCUMENT_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/
 
 function FirmaDigital() {
   const dispatch = useDispatch<AppDispatch>()
